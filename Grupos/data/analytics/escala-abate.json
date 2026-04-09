@@ -1,0 +1,27 @@
+[
+  {
+    "planta_id": "GO_001",
+    "regiao": "GO",
+    "data": "2026-04-07",
+    "dias_escala": 8,
+    "capacidade_abate_dia": 1100,
+    "fonte": "SIF"
+  },
+  {
+    "planta_id": "GO_002",
+    "regiao": "GO",
+    "data": "2026-04-07",
+    "dias_escala": 9,
+    "capacidade_abate_dia": 900,
+    "fonte": "SIF"
+  },
+  {
+    "planta_id": "MS_001",
+    "regiao": "MS",
+    "data": "2026-04-07",
+    "dias_escala": 11,
+    "capacidade_abate_dia": 1300,
+    "fonte": "SIF"
+  }
+]
+

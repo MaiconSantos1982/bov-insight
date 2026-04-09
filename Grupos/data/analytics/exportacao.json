@@ -1,0 +1,27 @@
+[
+  {
+    "periodo": "2026-02-01",
+    "destino": "CHINA",
+    "volume_t": 152340.12,
+    "receita_usd": 689002341.2,
+    "preco_medio_usd_t": 4523.11,
+    "fonte": "SECEX"
+  },
+  {
+    "periodo": "2026-02-01",
+    "destino": "EUA",
+    "volume_t": 22110.45,
+    "receita_usd": 125004500.11,
+    "preco_medio_usd_t": 5653.11,
+    "fonte": "SECEX"
+  },
+  {
+    "periodo": "2026-03-01",
+    "destino": "CHINA",
+    "volume_t": 161201.22,
+    "receita_usd": 734223410.88,
+    "preco_medio_usd_t": 4554.62,
+    "fonte": "SECEX"
+  }
+]
+

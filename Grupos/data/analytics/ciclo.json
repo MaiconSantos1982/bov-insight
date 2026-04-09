@@ -1,0 +1,21 @@
+[
+  {
+    "regiao": "BRASIL",
+    "periodo": "2026-02-01",
+    "taxa_femeas_pct": 43.72,
+    "fonte": "IBGE"
+  },
+  {
+    "regiao": "BRASIL",
+    "periodo": "2026-03-01",
+    "taxa_femeas_pct": 44.15,
+    "fonte": "IBGE"
+  },
+  {
+    "regiao": "UF_GO",
+    "periodo": "2026-03-01",
+    "taxa_femeas_pct": 41.98,
+    "fonte": "IBGE"
+  }
+]
+

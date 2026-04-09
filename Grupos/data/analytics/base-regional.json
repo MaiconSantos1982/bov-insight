@@ -1,0 +1,24 @@
+[
+  {
+    "data": "2026-04-01",
+    "praca_local": "GOIANIA",
+    "preco_fisico_local": 301.8,
+    "preco_referencia_sp": 307.2,
+    "fonte": "CEPEA"
+  },
+  {
+    "data": "2026-04-02",
+    "praca_local": "GOIANIA",
+    "preco_fisico_local": 302.4,
+    "preco_referencia_sp": 307.9,
+    "fonte": "CEPEA"
+  },
+  {
+    "data": "2026-04-02",
+    "praca_local": "DOURADOS",
+    "preco_fisico_local": 299.2,
+    "preco_referencia_sp": 307.9,
+    "fonte": "CEPEA"
+  }
+]
+

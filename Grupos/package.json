@@ -1,0 +1,46 @@
+{
+  "name": "worker-cotacoes-boi",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "npx ts-node src/server.ts",
+    "start": "npx ts-node src/index.ts",
+    "force": "npx ts-node src/index.ts --force",
+    "analytics:healthcheck": "npx ts-node src/analytics/run.ts healthcheck",
+    "analytics:source": "npx ts-node src/analytics/source-server.ts",
+    "analytics:ciclo": "npx ts-node src/analytics/run.ts ciclo",
+    "analytics:base": "npx ts-node src/analytics/run.ts base",
+    "analytics:escala": "npx ts-node src/analytics/run.ts escala",
+    "analytics:exportacao": "npx ts-node src/analytics/run.ts exportacao",
+    "analytics:ingest": "npx ts-node src/analytics/run.ts ingest",
+    "analytics:alertas": "npx ts-node src/analytics/run.ts alertas",
+    "build": "tsc",
+    "postinstall": "npx playwright install chromium",
+    "start:prod": "node dist/index.js",
+    "force:prod": "node dist/index.js --force"
+  },
+  "keywords": [
+    "scraping",
+    "cepea",
+    "tradingview",
+    "boi-gordo",
+    "worker"
+  ],
+  "author": "Gestor Pro",
+  "license": "ISC",
+  "description": "Worker de captura automática de cotações do Boi Gordo (CEPEA + TradingView) com envio via WhatsApp",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "node-cron": "^4.2.1",
+    "playwright": "^1.58.2",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.4.0",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2"
+  }
+}

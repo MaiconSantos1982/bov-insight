@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Worker Cotações - Boi Gordo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0a0e1a;
+      --bg-card: #111827;
+      --bg-card-hover: #1a2332;
+      --border: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-green: #22c55e;
+      --accent-green-glow: rgba(34, 197, 94, 0.15);
+      --accent-blue: #3b82f6;
+      --accent-blue-glow: rgba(59, 130, 246, 0.15);
+      --accent-amber: #f59e0b;
+      --accent-amber-glow: rgba(245, 158, 11, 0.15);
+      --accent-red: #ef4444;
+      --accent-purple: #a855f7;
+      --accent-purple-glow: rgba(168, 85, 247, 0.15);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Gradient background orbs */
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.08;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    body::before {
+      width: 600px;
+      height: 600px;
+      background: var(--accent-green);
+      top: -200px;
+      right: -100px;
+    }
+
+    body::after {
+      width: 500px;
+      height: 500px;
+      background: var(--accent-blue);
+      bottom: -150px;
+      left: -100px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Header ─────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      display: block;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-6px);
+      }
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* ── Status Strip ───────────── */
+    .status-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .status-badge.ok .dot {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .status-badge.warn .dot {
+      background: var(--accent-amber);
+      box-shadow: 0 0 6px var(--accent-amber);
+    }
+
+    .status-badge.error .dot {
+      background: var(--accent-red);
+      box-shadow: 0 0 6px var(--accent-red);
+    }
+
+    /* ── Action Button ──────────── */
+    .action-area {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .source-select-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .source-select {
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-weight: 700;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .btn-extract {
+      position: relative;
+      padding: 14px 36px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      color: #fff;
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(22, 163, 74, 0.3);
+    }
+
+    .btn-extract:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(22, 163, 74, 0.45);
+    }
+
+    .btn-extract:active {
+      transform: translateY(0);
+    }
+
+    .btn-extract:disabled {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-history {
+      position: relative;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      color: var(--text-primary);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.16);
+    }
+
+    .btn-history:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.24);
+    }
+
+    .btn-history:active {
+      transform: translateY(0);
+    }
+
+    .btn-history:disabled {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-extract .spinner,
+    .btn-history .spinner {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .btn-history .spinner {
+      border: 2px solid rgba(15, 23, 42, 0.2);
+      border-top-color: rgba(15, 23, 42, 0.8);
+    }
+
+    .btn-extract.loading .spinner,
+    .btn-history.loading .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .extract-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── Cards Grid ─────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 600px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.08);
+      transform: translateY(-2px);
+    }
+
+    .card-cepea::before {
+      background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+    }
+
+    .card-tv::before {
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+    }
+
+    .card-usd::before {
+      background: linear-gradient(90deg, var(--accent-amber), var(--accent-green));
+    }
+
+    .card-date::before {
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-amber));
+    }
+
+    .card-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .card-label .emoji {
+      font-size: 18px;
+    }
+
+    .card-value {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-value.placeholder {
+      color: var(--text-muted);
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .card-source {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ── WhatsApp Preview ───────── */
+    .whatsapp-section {
+      margin-bottom: 32px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .whatsapp-bubble {
+      background: #1a2e1a;
+      border: 1px solid #2d4a2d;
+      border-radius: 0 var(--radius) var(--radius) var(--radius);
+      padding: 20px;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #d5e8d4;
+      white-space: pre-line;
+      position: relative;
+      max-width: 480px;
+    }
+
+    .whatsapp-bubble::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -10px;
+      border-width: 0 10px 10px 0;
+      border-style: solid;
+      border-color: transparent #2d4a2d transparent transparent;
+    }
+
+    .whatsapp-bubble .bold {
+      font-weight: 700;
+      color: #e8f5e8;
+    }
+
+    .whatsapp-bubble .italic {
+      font-style: italic;
+      color: #a3c4a3;
+      font-size: 12px;
+    }
+
+    .whatsapp-bubble.empty {
+      color: var(--text-muted);
+      background: var(--bg-card);
+      border-color: var(--border);
+      font-style: italic;
+    }
+
+    .whatsapp-bubble.empty::before {
+      border-color: transparent var(--border) transparent transparent;
+    }
+
+    /* ── JSON Output ────────────── */
+    .json-section {
+      margin-bottom: 32px;
+    }
+
+    .json-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #8b949e;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .json-block .key {
+      color: #79c0ff;
+    }
+
+    .json-block .string {
+      color: #a5d6ff;
+    }
+
+    .json-block .number {
+      color: #56d364;
+    }
+
+    .json-block .null {
+      color: #f85149;
+    }
+
+    /* ── Logs Panel ─────────────── */
+    .logs-section {
+      margin-bottom: 32px;
+    }
+
+    .logs-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .btn-refresh-logs {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-refresh-logs:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .logs-container {
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 11.5px;
+      line-height: 1.7;
+    }
+
+    .logs-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .logs-container::-webkit-scrollbar-track {
+      background: #f3f4f6;
+    }
+
+    .logs-container::-webkit-scrollbar-thumb {
+      background: #9ca3af;
+      border-radius: 3px;
+    }
+
+    .log-line {
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #1f2937;
+    }
+
+    .log-line.info {
+      color: #374151;
+    }
+
+    .log-line.success {
+      color: #166534;
+    }
+
+    .log-line.warn {
+      color: #92400e;
+    }
+
+    .log-line.error {
+      color: #991b1b;
+      font-weight: 600;
+    }
+
+    .log-line .log-time {
+      color: #9ca3af;
+    }
+
+    .log-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      font-family: inherit;
+    }
+
+    .log-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: 8px;
+      font-weight: 400;
+    }
+
+    /* ── Footer ─────────────────── */
+    .footer {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* ── Loading Skeleton ───────── */
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+
+      100% {
+        background-position: 200% 0;
+      }
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+      height: 38px;
+      width: 160px;
+    }
+
+    /* ── Toast ───────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 14px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      z-index: 999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      background: #16a34a;
+      box-shadow: 0 4px 20px rgba(22, 163, 74, 0.4);
+    }
+
+    .toast.error {
+      background: #dc2626;
+      box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <span class="header-icon">🐂</span>
+      <h1>Worker de Cotações</h1>
+      <p>Fonte selecionável: CEPEA, DATAGRO ou Todos</p>
+    </div>
+
+    <!-- Status -->
+    <div class="status-strip" id="statusStrip">
+      <div class="status-badge" id="badgeCepea">
+        <span class="dot"></span> CEPEA
+      </div>
+      <div class="status-badge" id="badgeTv">
+        <span class="dot"></span> TradingView
+      </div>
+      <div class="status-badge" id="badgeWhatsapp">
+        <span class="dot"></span> WhatsApp
+      </div>
+    </div>
+
+    <!-- Action -->
+    <div class="action-area">
+      <div class="source-select-wrap">
+        <label for="fonteSelect">Fonte:</label>
+        <select id="fonteSelect" class="source-select">
+          <option value="cepea">CEPEA + TradingView</option>
+          <option value="datagro">DATAGRO (3 blocos)</option>
+          <option value="todos">Todos (4 blocos)</option>
+        </select>
+      </div>
+      <div class="action-buttons">
+        <button class="btn-extract" id="btnExtract" onclick="executarScraping()">
+          <span class="spinner"></span>
+          <span class="btn-text">⚡ Extrair Agora</span>
+        </button>
+        <button class="btn-history" id="btnHistory" onclick="executarHistorico()">
+          <span class="spinner"></span>
+          <span class="btn-text">🗂️ Atualizar Histórico</span>
+        </button>
+      </div>
+      <p class="extract-hint">Escolha a fonte e dispare a extração de teste</p>
+    </div>
+
+    <!-- Cards -->
+    <div class="cards">
+      <div class="card card-cepea">
+        <div class="card-label"><span class="emoji">🐂</span> Boi Físico (CEPEA)</div>
+        <div class="card-value" id="valCepeaBrl">—</div>
+        <div class="card-source">Fonte: cepea.org.br</div>
+      </div>
+      <div class="card card-tv">
+        <div class="card-label"><span class="emoji">📈</span> Boi Futuro (B3)</div>
+        <div class="card-value" id="valFuturo">—</div>
+        <div class="card-source">Fonte: TradingView BGI1!</div>
+      </div>
+      <div class="card card-usd">
+        <div class="card-label"><span class="emoji">💵</span> Boi Físico (USD)</div>
+        <div class="card-value" id="valCepeaUsd">—</div>
+        <div class="card-source">Fonte: cepea.org.br</div>
+      </div>
+      <div class="card card-date">
+        <div class="card-label"><span class="emoji">📅</span> Data de Referência</div>
+        <div class="card-value" id="valData">—</div>
+        <div class="card-source" id="valExtracao">Última extração: —</div>
+      </div>
+    </div>
+
+    <!-- WhatsApp Preview -->
+    <div class="whatsapp-section">
+      <div class="section-title">💬 Preview da Mensagem WhatsApp</div>
+      <div class="whatsapp-bubble empty" id="whatsappPreview">
+        Clique em "Extrair Agora" para ver o preview da mensagem.
+      </div>
+    </div>
+
+    <!-- JSON -->
+    <div class="json-section">
+      <div class="section-title">🔧 Resposta JSON (Debug)</div>
+      <div class="json-block" id="jsonOutput">Aguardando extração...</div>
+    </div>
+
+    <!-- Logs -->
+    <div class="logs-section">
+      <div class="logs-header">
+        <div class="section-title">📋 Logs do Worker <span class="log-count" id="logCount"></span></div>
+        <button class="btn-refresh-logs" onclick="carregarLogs()">🔄 Atualizar</button>
+      </div>
+      <div class="logs-container" id="logsContainer">
+        <div class="log-empty">Carregando logs...</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      Worker de Cotações — Gestor Pro &nbsp;|&nbsp; Powered by Playwright
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function formatBrl(value) {
+      if (value === null || value === undefined) return '—';
+      return 'R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatUsd(value) {
+      if (value === null || value === undefined) return '—';
+      return 'US$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = $('toast');
+      toast.textContent = msg;
+      toast.className = `toast ${type}`;
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+
+    function renderJson(data) {
+      if (!data) return 'null';
+      const json = JSON.stringify(data, null, 2);
+      return json
+        .replace(/"([^"]+)":/g, '<span class="key">"$1"</span>:')
+        .replace(/: "([^"]+)"/g, ': <span class="string">"$1"</span>')
+        .replace(/: (-?\d+\.?\d*)/g, ': <span class="number">$1</span>')
+        .replace(/: null/g, ': <span class="null">null</span>');
+    }
+
+    function formatWhatsapp(text) {
+      if (!text) return '';
+      return text
+        .replace(/\*([^*]+)\*/g, '<span class="bold">$1</span>')
+        .replace(/_([^_]+)_/g, '<span class="italic">$1</span>');
+    }
+
+    function updateUI(data) {
+      if (!data) return;
+
+      const fonteDatagro = data.fonte === 'datagro';
+      const totalBrasil = (data.datagro_boi_brasil || []).length;
+      const totalFuturo = (data.datagro_mercado_futuro || []).length;
+      const totalMundo = (data.datagro_boi_mundo || []).length;
+      const dataDatagro =
+        (data.datagro_boi_brasil || []).find((x) => x.data)?.data ||
+        (data.datagro_mercado_futuro || []).find((x) => x.data)?.data ||
+        (data.datagro_boi_mundo || []).find((x) => x.data)?.data ||
+        null;
+
+      // Cards
+      $('valCepeaBrl').textContent = fonteDatagro
+        ? `${totalBrasil} itens`
+        : (data.cepea_fisico_brl !== null ? formatBrl(data.cepea_fisico_brl) : '—');
+      $('valCepeaBrl').classList.toggle('placeholder', fonteDatagro ? totalBrasil === 0 : data.cepea_fisico_brl === null);
+
+      $('valFuturo').textContent = fonteDatagro
+        ? `${totalFuturo} contratos`
+        : (data.tradingview_futuro_brl !== null ? formatBrl(data.tradingview_futuro_brl) : '—');
+      $('valFuturo').classList.toggle('placeholder', fonteDatagro ? totalFuturo === 0 : data.tradingview_futuro_brl === null);
+
+      $('valCepeaUsd').textContent = fonteDatagro
+        ? `${totalMundo} países`
+        : (data.cepea_fisico_usd !== null ? formatUsd(data.cepea_fisico_usd) : '—');
+      $('valCepeaUsd').classList.toggle('placeholder', fonteDatagro ? totalMundo === 0 : data.cepea_fisico_usd === null);
+
+      $('valData').textContent = fonteDatagro ? (dataDatagro || '—') : (data.cepea_data_referencia || '—');
+      $('valData').classList.toggle('placeholder', fonteDatagro ? !dataDatagro : !data.cepea_data_referencia);
+
+      // Extração timestamp
+      if (data.data_extracao) {
+        const d = new Date(data.data_extracao);
+        $('valExtracao').textContent = 'Última extração: ' + d.toLocaleString('pt-BR');
+      }
+
+      // Badges
+      $('badgeCepea').className = `status-badge ${fonteDatagro ? (totalBrasil > 0 ? 'ok' : 'error') : (data.cepea_fisico_brl !== null ? 'ok' : 'error')}`;
+      $('badgeTv').className = `status-badge ${fonteDatagro ? (totalFuturo > 0 ? 'ok' : 'error') : (data.tradingview_futuro_brl !== null ? 'ok' : 'error')}`;
+
+      // JSON
+      $('jsonOutput').innerHTML = renderJson(data);
+    }
+
+    async function executarScraping() {
+      const btn = $('btnExtract');
+      const fonte = $('fonteSelect').value;
+      localStorage.setItem('fonteCotacao', fonte);
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.querySelector('.btn-text').textContent = 'Extraindo...';
+
+      // Skeleton nos cards
+      ['valCepeaBrl', 'valFuturo', 'valCepeaUsd', 'valData'].forEach(id => {
+        $(id).innerHTML = '<div class="skeleton"></div>';
+      });
+
+      try {
+        const res = await fetch('/api/executar?fonte=' + encodeURIComponent(fonte));
+        const json = await res.json();
+
+        if (json.sucesso) {
+          updateUI(json.dados);
+          showToast('✅ Extração concluída com sucesso!', 'success');
+
+          // Busca preview da mensagem
+          const prev = await fetch('/api/preview-mensagem');
+          const prevData = await prev.json();
+          if (prevData.mensagem) {
+            $('whatsappPreview').innerHTML = formatWhatsapp(prevData.mensagem);
+            $('whatsappPreview').classList.remove('empty');
+          }
+        } else {
+          showToast('❌ Erro: ' + json.erro, 'error');
+          ['valCepeaBrl', 'valFuturo', 'valCepeaUsd', 'valData'].forEach(id => {
+            $(id).textContent = '—';
+          });
+        }
+      } catch (err) {
+        showToast('❌ Falha na conexão: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.querySelector('.btn-text').textContent = '⚡ Extrair Agora';
+        // Atualiza logs automaticamente
+        carregarLogs();
+      }
+    }
+
+    async function executarHistorico() {
+      const btn = $('btnHistory');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.querySelector('.btn-text').textContent = 'Atualizando...';
+
+      ['valCepeaBrl', 'valFuturo', 'valCepeaUsd', 'valData'].forEach(id => {
+        $(id).innerHTML = '<div class="skeleton"></div>';
+      });
+
+      try {
+        const res = await fetch('/api/executar-historico');
+        const json = await res.json();
+
+        if (json.sucesso) {
+          updateUI(json.dados);
+          showToast('✅ Histórico atualizado sem envio ao grupo.', 'success');
+        } else {
+          showToast('❌ Erro: ' + json.erro, 'error');
+          ['valCepeaBrl', 'valFuturo', 'valCepeaUsd', 'valData'].forEach(id => {
+            $(id).textContent = '—';
+          });
+        }
+      } catch (err) {
+        showToast('❌ Falha na conexão: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.querySelector('.btn-text').textContent = '🗂️ Atualizar Histórico';
+        carregarLogs();
+      }
+    }
+
+    // Carrega status inicial
+    async function carregarStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        const fonteSalva = localStorage.getItem('fonteCotacao');
+        if (fonteSalva === 'cepea' || fonteSalva === 'datagro' || fonteSalva === 'todos') {
+          $('fonteSelect').value = fonteSalva;
+        } else if (data.ultimaFonte) {
+          $('fonteSelect').value = data.ultimaFonte;
+        }
+
+        // WhatsApp badge
+        $('badgeWhatsapp').className = `status-badge ${data.config.whatsappConfigurado ? 'ok' : 'warn'}`;
+
+        if (data.ultimoResultado) {
+          updateUI(data.ultimoResultado);
+
+          const prev = await fetch('/api/preview-mensagem');
+          const prevData = await prev.json();
+          if (prevData.mensagem) {
+            $('whatsappPreview').innerHTML = formatWhatsapp(prevData.mensagem);
+            $('whatsappPreview').classList.remove('empty');
+          }
+        }
+      } catch {
+        // Servidor indisponível
+      }
+    }
+
+    // ── Logs ──────────────────────────────
+    function classifyLog(line) {
+      if (line.includes('[SUCCESS]')) return 'success';
+      if (line.includes('[ERROR]')) return 'error';
+      if (line.includes('[WARN]')) return 'warn';
+      return 'info';
+    }
+
+    function formatLogLine(line) {
+      // Colore o timestamp
+      return line.replace(/^(\[[^\]]+\])/, '<span class="log-time">$1</span>');
+    }
+
+    async function carregarLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        const data = await res.json();
+        const container = $('logsContainer');
+
+        if (!data.logs || data.logs.length === 0) {
+          container.innerHTML = '<div class="log-empty">Nenhum log encontrado para hoje.</div>';
+          $('logCount').textContent = '';
+          return;
+        }
+
+        $('logCount').textContent = `(${data.total} linhas)`;
+
+        container.innerHTML = data.logs.map(line => {
+          const cls = classifyLog(line);
+          return `<div class="log-line ${cls}">${formatLogLine(line)}</div>`;
+        }).join('');
+
+        // Auto-scroll para o fim
+        container.scrollTop = container.scrollHeight;
+      } catch {
+        $('logsContainer').innerHTML = '<div class="log-empty">Erro ao carregar logs.</div>';
+      }
+    }
+
+    carregarStatus();
+    carregarLogs();
+  </script>
+</body>
+
+</html>
