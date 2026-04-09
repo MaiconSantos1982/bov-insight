@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { Bell, BellOff, Plus, Trash2, Send, Clock, Smartphone } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -27,7 +27,7 @@ function buildInitialRules(data: AlertaProRegra[], userId: string | null): Alert
   return data.filter((item) => item.usuario_id === userId)
 }
 
-export default function AlertasPage() {
+function AlertasPageContent() {
   const { alertasProRegras, alertasProDestinos, usuarioConfiguracao, latestPrices } = useData()
   const searchParams = useSearchParams()
   const auto = searchParams.get("auto") === "1"
@@ -230,5 +230,13 @@ export default function AlertasPage() {
         </Card>
       </div>
     </>
+  )
+}
+
+export default function AlertasPage() {
+  return (
+    <Suspense fallback={null}>
+      <AlertasPageContent />
+    </Suspense>
   )
 }
