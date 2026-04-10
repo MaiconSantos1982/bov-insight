@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { AdminSubnav } from "@/components/admin-subnav"
 import { useData } from "@/lib/data-provider"
+import { formatPhoneForDisplay } from "@/lib/phone-format"
 
 const PAGE_SIZE = 50
 
@@ -47,7 +48,8 @@ export default function AdminAssinantesPage() {
         !q ||
         item.nome.toLowerCase().includes(q) ||
         (item.email || "").toLowerCase().includes(q) ||
-        item.telefone_whatsapp.toLowerCase().includes(q)
+        item.telefone_whatsapp.toLowerCase().includes(q) ||
+        formatPhoneForDisplay(item.telefone_whatsapp).toLowerCase().includes(q)
 
       const matchStatus = status === "todos" || item.assinatura_status === status
       const matchPlano = plano === "todos" || item.plano === plano
@@ -144,7 +146,7 @@ export default function AdminAssinantesPage() {
                     <tr key={`${item.usuario_id}-${item.assinatura_id || "n"}`} className="border-b border-border/30 hover:bg-muted/30">
                       <td className="py-2.5 px-3">{item.nome}</td>
                       <td className="py-2.5 px-3">{item.email || "N/D"}</td>
-                      <td className="py-2.5 px-3">{item.telefone_whatsapp}</td>
+                      <td className="py-2.5 px-3">{formatPhoneForDisplay(item.telefone_whatsapp)}</td>
                       <td className="py-2.5 px-3">{item.plano || "N/D"}</td>
                       <td className="py-2.5 px-3">{item.proximo_vencimento ? format(new Date(`${item.proximo_vencimento}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : "N/D"}</td>
                       <td className="text-right py-2.5 px-3"><Badge variant={item.assinatura_status === "ATIVA" ? "default" : item.assinatura_status === "INADIMPLENTE" ? "secondary" : "outline"}>{formatAssinaturaStatus(item.assinatura_status)}</Badge></td>

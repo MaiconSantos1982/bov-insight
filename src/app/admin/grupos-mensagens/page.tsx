@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { AdminSubnav } from "@/components/admin-subnav"
 import { useData } from "@/lib/data-provider"
+import { formatPhoneForDisplay } from "@/lib/phone-format"
 import { supabase, type GrupoNotificacao } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -266,7 +267,7 @@ export default function AdminGruposMensagensPage() {
                     <tr key={item.id} className="border-b border-border/30 hover:bg-muted/30">
                       <td className="py-2.5 px-3">{format(new Date(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</td>
                       <td className="py-2.5 px-3">{item.usuario_id}</td>
-                      <td className="py-2.5 px-3">{item.telefone_destino}</td>
+                      <td className="py-2.5 px-3">{formatPhoneForDisplay(item.telefone_destino)}</td>
                       <td className="py-2.5 px-3">R$ {item.custo_estimado_brl.toLocaleString("pt-BR", { minimumFractionDigits: 4 })}</td>
                       <td className="text-right py-2.5 px-3"><Badge variant={item.status === "ENVIADO" ? "default" : "secondary"}>{item.status}</Badge></td>
                     </tr>

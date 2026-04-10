@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { AdminSubnav } from "@/components/admin-subnav"
 import { useData } from "@/lib/data-provider"
+import { formatPhoneForDisplay } from "@/lib/phone-format"
 
 function formatStatus(status: "PENDENTE" | "PROCESSADO" | "FALHA") {
   if (status === "PROCESSADO") return "Processado"
@@ -73,7 +74,7 @@ export default function AdminWebhooksPage() {
                         <td className="py-2.5 px-3 whitespace-nowrap">{item.event_type}</td>
                         <td className="py-2.5 px-3">
                           {assinante
-                            ? <div><p className="font-medium">{assinante.nome}</p><p className="text-xs text-muted-foreground">{assinante.email || assinante.telefone_whatsapp}</p></div>
+                            ? <div><p className="font-medium">{assinante.nome}</p><p className="text-xs text-muted-foreground">{assinante.email || formatPhoneForDisplay(assinante.telefone_whatsapp)}</p></div>
                             : <span className="text-muted-foreground">Não vinculado</span>}
                         </td>
                         <td className="py-2.5 px-3"><code className="text-xs">{item.provider_event_id}</code></td>
