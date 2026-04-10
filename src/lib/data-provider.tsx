@@ -166,7 +166,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setHistoricalData(allData)
                 }
 
-                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasHttpRes, billingEventosHttpRes] = await Promise.all([
+                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesHttpRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasHttpRes, billingEventosHttpRes] = await Promise.all([
                     fetchAllRows<CicloPecuarioClassificacao>('boigordo_view_ciclo_pecuario_classificacao', {
                         orderBy: 'periodo',
                         ascending: true,
@@ -220,11 +220,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         .select('*')
                         .order('created_at', { ascending: true })
                         .limit(200),
-                    supabase
-                        .from('boigordo_view_admin_assinantes')
-                        .select('*')
-                        .order('nome', { ascending: true })
-                        .limit(1000),
+                    fetch('/api/admin/assinantes', { cache: 'no-store' }),
                     supabase
                         .from('boigordo_view_admin_churn_mensal')
                         .select('*')
@@ -292,10 +288,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setGruposNotificacao((gruposRes.data || []) as GrupoNotificacao[])
                 }
 
-                if (adminAssinantesRes.error) {
-                    console.error('Erro ao buscar boigordo_view_admin_assinantes:', adminAssinantesRes.error)
-                } else {
-                    setAdminAssinantes((adminAssinantesRes.data || []) as AdminAssinante[])
+                try {
+                    const adminAssinantesJson = await adminAssinantesHttpRes.json() as { ok: boolean; rows?: AdminAssinante[]; error?: string }
+                    if (!adminAssinantesHttpRes.ok || !adminAssinantesJson.ok) {
+                        console.error('Erro ao buscar boigordo_view_admin_assinantes via API:', adminAssinantesJson.error || adminAssinantesHttpRes.statusText)
+                    } else {
+                        setAdminAssinantes((adminAssinantesJson.rows || []) as AdminAssinante[])
+                    }
+                } catch (err) {
+                    console.error('Falha ao decodificar resposta de admin-assinantes:', err)
                 }
 
                 if (churnRes.error) {
