@@ -457,6 +457,67 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   if (existingEvent?.id) {
+    // Se o evento já existia, mas sem vínculo de usuário/assinatura,
+    // tentamos reprocessar para completar o cadastro.
+    if (!existingEvent.usuario_id || !existingEvent.assinatura_id) {
+      try {
+        const usuarioId = await upsertUsuarioPerfilFromWebhook(supabaseAdmin, payload)
+        let assinaturaId: string | null = existingEvent.assinatura_id
+        let statusNovo: BillingStatus | null = null
+
+        if (usuarioId) {
+          const assinaturaResult = await upsertAssinaturaFromWebhook(supabaseAdmin, payload, usuarioId)
+          assinaturaId = assinaturaResult.assinaturaId
+          statusNovo = assinaturaResult.statusNovo
+
+          if (assinaturaId) {
+            await insertPagamentoHistoricoFromWebhook(supabaseAdmin, payload, assinaturaId, usuarioId)
+          }
+
+          await supabaseAdmin.from("boigordo_assinaturas_eventos").insert({
+            assinatura_id: assinaturaId,
+            usuario_id: usuarioId,
+            evento: eventType,
+            status_anterior: payload.oldStatus || null,
+            status_novo: statusNovo,
+            origem: "WEBHOOK",
+            detalhes: payload,
+          })
+        }
+
+        await supabaseAdmin
+          .from("boigordo_billing_eventos")
+          .update({
+            usuario_id: usuarioId,
+            assinatura_id: assinaturaId,
+            status_processamento: "PROCESSADO",
+            processed_at: new Date().toISOString(),
+            erro: usuarioId ? null : "Reprocessado sem vínculo (faltou email/telefone válido no payload).",
+          })
+          .eq("id", existingEvent.id)
+
+        return NextResponse.json({
+          ok: true,
+          duplicate: true,
+          reprocessed: true,
+          event_type: eventType,
+          provider_event_id: providerEventId,
+          usuario_id: usuarioId,
+          assinatura_id: assinaturaId,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        await supabaseAdmin
+          .from("boigordo_billing_eventos")
+          .update({
+            status_processamento: "FALHA",
+            erro: message,
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", existingEvent.id)
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       duplicate: true,
