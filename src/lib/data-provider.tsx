@@ -166,7 +166,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setHistoricalData(allData)
                 }
 
-                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasRes, billingEventosHttpRes] = await Promise.all([
+                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasHttpRes, billingEventosHttpRes] = await Promise.all([
                     fetchAllRows<CicloPecuarioClassificacao>('boigordo_view_ciclo_pecuario_classificacao', {
                         orderBy: 'periodo',
                         ascending: true,
@@ -240,11 +240,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         .select('*')
                         .order('created_at', { ascending: false })
                         .limit(500),
-                    supabase
-                        .from('boigordo_assinaturas')
-                        .select('*')
-                        .order('data_inicio', { ascending: false })
-                        .limit(5000),
+                    fetch('/api/admin/assinaturas', { cache: 'no-store' }),
                     fetch('/api/admin/billing-eventos', { cache: 'no-store' }),
                 ])
 
@@ -320,10 +316,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setAlertasProEnvios((enviosRes.data || []) as AlertaProEnvio[])
                 }
 
-                if (assinaturasDetalhadasRes.error) {
-                    console.error('Erro ao buscar boigordo_assinaturas:', assinaturasDetalhadasRes.error)
-                } else {
-                    setAssinaturasDetalhadas((assinaturasDetalhadasRes.data || []) as AssinaturaDetalhada[])
+                try {
+                    const assinaturasJson = await assinaturasDetalhadasHttpRes.json() as { ok: boolean; rows?: AssinaturaDetalhada[]; error?: string }
+                    if (!assinaturasDetalhadasHttpRes.ok || !assinaturasJson.ok) {
+                        console.error('Erro ao buscar boigordo_assinaturas via API:', assinaturasJson.error || assinaturasDetalhadasHttpRes.statusText)
+                    } else {
+                        setAssinaturasDetalhadas((assinaturasJson.rows || []) as AssinaturaDetalhada[])
+                    }
+                } catch (err) {
+                    console.error('Falha ao decodificar resposta de assinaturas:', err)
                 }
 
                 try {
