@@ -21,6 +21,7 @@ import {
     type ExecucaoLog,
     type AlertaProEnvio,
     type AssinaturaDetalhada,
+    type BillingEvento,
 } from '@/lib/supabase'
 import {
     generateMockAlertas,
@@ -64,6 +65,7 @@ interface DataContextType {
     execucoesLogs: ExecucaoLog[]
     alertasProEnvios: AlertaProEnvio[]
     assinaturasDetalhadas: AssinaturaDetalhada[]
+    billingEventos: BillingEvento[]
     latestPrices: Record<string, LatestPrice>
     previousPrices: Record<string, LatestPrice>
     getRelacaoTroca: (dateRange: DateRange | undefined, agrupamento: 'day' | 'week' | 'month') => RelacaoTrocaRow[]
@@ -96,6 +98,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [execucoesLogs, setExecucoesLogs] = useState<ExecucaoLog[]>([])
     const [alertasProEnvios, setAlertasProEnvios] = useState<AlertaProEnvio[]>([])
     const [assinaturasDetalhadas, setAssinaturasDetalhadas] = useState<AssinaturaDetalhada[]>([])
+    const [billingEventos, setBillingEventos] = useState<BillingEvento[]>([])
     const [loading, setLoading] = useState(true)
     const [alertas, setAlertas] = useState<MockAlerta[]>(() => generateMockAlertas())
     const usuarios = useMemo(() => generateMockUsuarios(), [])
@@ -163,7 +166,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setHistoricalData(allData)
                 }
 
-                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasRes] = await Promise.all([
+                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasRes, billingEventosRes] = await Promise.all([
                     fetchAllRows<CicloPecuarioClassificacao>('boigordo_view_ciclo_pecuario_classificacao', {
                         orderBy: 'periodo',
                         ascending: true,
@@ -242,6 +245,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         .select('*')
                         .order('data_inicio', { ascending: false })
                         .limit(5000),
+                    supabase
+                        .from('boigordo_billing_eventos')
+                        .select('*')
+                        .order('received_at', { ascending: false })
+                        .limit(1000),
                 ])
 
                 setCicloPecuario(cicloRows)
@@ -320,6 +328,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     console.error('Erro ao buscar boigordo_assinaturas:', assinaturasDetalhadasRes.error)
                 } else {
                     setAssinaturasDetalhadas((assinaturasDetalhadasRes.data || []) as AssinaturaDetalhada[])
+                }
+
+                if (billingEventosRes.error) {
+                    console.error('Erro ao buscar boigordo_billing_eventos:', billingEventosRes.error)
+                } else {
+                    setBillingEventos((billingEventosRes.data || []) as BillingEvento[])
                 }
             } catch (err) {
                 console.error('Erro na conexão com Supabase:', err)
@@ -485,6 +499,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             execucoesLogs,
             alertasProEnvios,
             assinaturasDetalhadas,
+            billingEventos,
             latestPrices,
             previousPrices,
             getRelacaoTroca,

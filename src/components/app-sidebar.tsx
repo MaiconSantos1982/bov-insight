@@ -21,6 +21,7 @@ import {
     Users,
     MessageSquare,
     FileText,
+    Webhook,
 } from 'lucide-react'
 import {
     Sidebar,
@@ -103,6 +104,11 @@ const adminMenuItems = [
         label: 'Assinantes',
         href: '/admin/assinantes',
         icon: Users,
+    },
+    {
+        label: 'Webhooks',
+        href: '/admin/webhooks',
+        icon: Webhook,
     },
     {
         label: 'Grupos e Mensagens',

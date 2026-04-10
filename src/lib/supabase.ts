@@ -243,6 +243,23 @@ export interface AssinaturaDetalhada {
   updated_at: string
 }
 
+export interface BillingEvento {
+  id: string
+  provider: string
+  provider_event_id: string
+  event_type: string
+  usuario_id: string | null
+  assinatura_id: string | null
+  status_processamento: 'PENDENTE' | 'PROCESSADO' | 'FALHA'
+  tentativas: number
+  received_at: string
+  processed_at: string | null
+  payload: Record<string, unknown>
+  erro: string | null
+  created_at: string
+  updated_at: string
+}
+
 // Product labels mapping
 export const PRODUTOS = {
   boi_gordo: { label: 'Boi Gordo', unit: '@', color: 'hsl(160, 60%, 45%)' },
