@@ -299,11 +299,58 @@ Meta: dar visão operacional e financeira da base de assinantes.
 - Custos operacionais de Alertas Pro enviados.
 - Logs de execuções (workers, notificações, falhas e retentativas).
 
+## Fase 7 (Autenticação, billing e segurança de produção)
+Meta: controlar acesso por assinatura ativa, integrar pagamentos e elevar segurança/observabilidade para escala comercial.
+
+### 3.20. Cadastro e gestão de superadmins (homologação)
+- Criar seed/controlador para usuários superadmin de teste.
+- Definir papéis mínimos de acesso:
+  - `SUPERADMIN`
+  - `ASSINANTE`
+  - `BLOQUEADO`
+- Garantir restrição de telas sensíveis por papel (RBAC).
+
+### 3.21. Integração com plataforma de pagamento (webhooks)
+- Integrar provedor de pagamento por webhooks (worker próprio ou n8n).
+- Persistir eventos brutos em tabela de auditoria (`boigordo_billing_eventos`), com idempotência por `event_id`.
+- Mapear eventos para ciclo de assinatura:
+  - `ATIVA`, `TRIAL`, `INADIMPLENTE`, `CANCELADA`, `EXPIRADA`.
+- Implementar reconciliação diária para corrigir divergência entre gateway e banco.
+
+### 3.22. Login e controle de acesso por adimplência
+- Criar tela de login e sessão autenticada.
+- Validar e-mail do usuário com base cadastrada.
+- Liberar acesso apenas para assinatura em dia (com regra de carência opcional).
+- Exibir estado de bloqueio com mensagem clara quando status de pagamento estiver irregular.
+
+### 3.23. Hardening de segurança (LGPD e segredos)
+- Garantir segregação de chaves:
+  - público: apenas `NEXT_PUBLIC_*` estritamente necessários;
+  - segredo: service keys apenas em backend/workers.
+- Revisar RLS e políticas por tabela para impedir leitura cruzada de dados de usuário.
+- Mascarar PII em logs e payloads de erro.
+- Definir política de retenção/exclusão/anonimização conforme LGPD.
+
+### 3.24. Observabilidade e confiabilidade operacional
+- Healthchecks ativos para frontend e workers.
+- Alertas de falha para:
+  - ingestão analítica
+  - webhooks de pagamento
+  - envio de notificações
+- Métricas operacionais mínimas:
+  - sucesso/falha por job
+  - atraso de execução
+  - volume processado
+  - custo estimado de notificações
+
 ## 4. Priorização (ordem sugerida)
 1. Fase 1 completa (tabelas + workers + carga inicial 36 meses).
 2. Fase 2 completa (views estáveis e validadas).
 3. Fase 3 (UI e APIs de consulta).
 4. Fase 4 (alertas analíticos e automações).
+5. Fase 5 (alertas pro + configurações do usuário).
+6. Fase 6 (painel admin e gestão operacional).
+7. Fase 7 (auth, billing e segurança de produção).
 
 ## 5. Critérios de pronto por módulo
 ### 5.1. Dados

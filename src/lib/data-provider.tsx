@@ -378,7 +378,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         const filtered = historicalData.filter(d => d.data >= from && d.data <= to)
 
-        const grouped: Record<string, { boi_gordo: number[]; milho: number[]; bezerro: number[]; soja: number[] }> = {}
+        const grouped: Record<string, {
+            boi_gordo: number[];
+            milho: number[];
+            bezerro: number[];
+            soja: number[];
+            data_ref: string;
+        }> = {}
 
         for (const item of filtered) {
             let key: string
@@ -397,19 +403,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             }
 
             if (!grouped[key]) {
-                grouped[key] = { boi_gordo: [], milho: [], bezerro: [], soja: [] }
+                grouped[key] = {
+                    boi_gordo: [],
+                    milho: [],
+                    bezerro: [],
+                    soja: [],
+                    // Para semana, usamos a data mais recente da janela.
+                    // Para dia/mês, fica equivalente ao próprio bucket.
+                    data_ref: item.data,
+                }
             }
 
             const produto = item.produto as 'boi_gordo' | 'milho' | 'bezerro' | 'soja'
             if (grouped[key][produto]) {
                 grouped[key][produto].push(item.valor_brl)
             }
+            if (item.data > grouped[key].data_ref) {
+                grouped[key].data_ref = item.data
+            }
         }
 
         return Object.entries(grouped)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([dateKey, values]) => ({
-                data_ref: dateKey,
+                data_ref: agrupamento === 'week' ? values.data_ref : dateKey,
                 boi_gordo: values.boi_gordo.length ? Math.round(avg(values.boi_gordo) * 100) / 100 : null,
                 milho: values.milho.length ? Math.round(avg(values.milho) * 100) / 100 : null,
                 bezerro: values.bezerro.length ? Math.round(avg(values.bezerro) * 100) / 100 : null,
