@@ -59,6 +59,34 @@ type WebhookPayload = {
     step?: number
   }
   id?: string | number
+  saleMetas?: Array<{ meta_key?: string; meta_value?: string }>
+  productMetas?: Array<{ key?: string; value?: string }>
+  proposalMetas?: Array<{ key?: string; value?: string }>
+}
+
+function findMetaValue(payload: WebhookPayload, keys: string[]): string | null {
+  const normalized = keys.map((k) => k.toLowerCase())
+  const sale = payload.saleMetas || []
+  const product = payload.productMetas || []
+  const proposal = payload.proposalMetas || []
+
+  const pick = (
+    arr: Array<{ k?: string; v?: string }>
+  ): string | null => {
+    for (const item of arr) {
+      const key = (item.k || "").toLowerCase()
+      if (normalized.includes(key) && item.v && String(item.v).trim()) {
+        return String(item.v).trim()
+      }
+    }
+    return null
+  }
+
+  return (
+    pick(sale.map((i) => ({ k: i.meta_key, v: i.meta_value }))) ||
+    pick(product.map((i) => ({ k: i.key, v: i.value }))) ||
+    pick(proposal.map((i) => ({ k: i.key, v: i.value })))
+  )
 }
 
 function normalizePhoneE164(phone: string | undefined): string | null {
@@ -183,8 +211,10 @@ async function findUsuarioIdByClient(
   supabaseAdmin: any,
   payload: WebhookPayload
 ): Promise<string | null> {
-  const email = (payload.client?.email || payload.lead?.email || "").trim().toLowerCase() || null
-  const phone = normalizePhoneE164(payload.client?.cellphone || payload.lead?.cellphone)
+  const emailFromMeta = findMetaValue(payload, ["email", "user_email", "cliente_email"])
+  const phoneFromMeta = findMetaValue(payload, ["telefone", "phone", "whatsapp", "telefone_whatsapp"])
+  const email = (payload.client?.email || payload.lead?.email || emailFromMeta || "").trim().toLowerCase() || null
+  const phone = normalizePhoneE164(payload.client?.cellphone || payload.lead?.cellphone || phoneFromMeta || undefined)
 
   if (email) {
     const { data } = await supabaseAdmin
@@ -207,12 +237,28 @@ async function findUsuarioIdByClient(
   return null
 }
 
+function buildFallbackPhoneE164(payload: WebhookPayload): string {
+  const seed =
+    String(payload.client?.id || "") ||
+    String(payload.lead?.id || "") ||
+    String(payload.sale?.id || payload.currentSale?.id || "") ||
+    String(payload.contract?.id || "") ||
+    String(payload.id || "") ||
+    crypto.randomUUID()
+
+  const digits = crypto.createHash("sha256").update(seed).digest("hex").replace(/\D/g, "").slice(0, 8)
+  return `+5500000${digits.padEnd(8, "0")}`
+}
+
 async function upsertUsuarioPerfilFromWebhook(
   supabaseAdmin: any,
   payload: WebhookPayload
 ): Promise<string | null> {
-  const email = (payload.client?.email || payload.lead?.email || "").trim().toLowerCase() || null
-  const phone = normalizePhoneE164(payload.client?.cellphone || payload.lead?.cellphone)
+  const emailFromMeta = findMetaValue(payload, ["email", "user_email", "cliente_email"])
+  const phoneFromMeta = findMetaValue(payload, ["telefone", "phone", "whatsapp", "telefone_whatsapp"])
+  const email = (payload.client?.email || payload.lead?.email || emailFromMeta || "").trim().toLowerCase() || null
+  const phoneRaw = payload.client?.cellphone || payload.lead?.cellphone || phoneFromMeta || undefined
+  const phone = normalizePhoneE164(phoneRaw) || (email ? buildFallbackPhoneE164(payload) : null)
   const nome = (payload.client?.name || payload.lead?.name || "Cliente")?.trim() || "Cliente"
 
   if (!phone && !email) return null
@@ -221,7 +267,6 @@ async function upsertUsuarioPerfilFromWebhook(
   const usuarioExistente = await findUsuarioIdByClient(supabaseAdmin, payload)
   if (usuarioExistente) return usuarioExistente
 
-  // Sem telefone não dá para inserir no perfil atual (campo obrigatório com formato E164).
   if (!phone) return null
 
   const usuarioId = crypto.randomUUID()
@@ -235,6 +280,7 @@ async function upsertUsuarioPerfilFromWebhook(
     papeis_mercado: [],
     etapas_operacao: [],
     dados_questionario: {},
+    observacoes: phoneRaw ? null : "Webhook: telefone fallback gerado automaticamente.",
   })
 
   if (error) {
