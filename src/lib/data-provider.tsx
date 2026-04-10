@@ -166,7 +166,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setHistoricalData(allData)
                 }
 
-                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasRes, billingEventosRes] = await Promise.all([
+                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasRes, billingEventosHttpRes] = await Promise.all([
                     fetchAllRows<CicloPecuarioClassificacao>('boigordo_view_ciclo_pecuario_classificacao', {
                         orderBy: 'periodo',
                         ascending: true,
@@ -245,11 +245,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         .select('*')
                         .order('data_inicio', { ascending: false })
                         .limit(5000),
-                    supabase
-                        .from('boigordo_billing_eventos')
-                        .select('*')
-                        .order('received_at', { ascending: false })
-                        .limit(1000),
+                    fetch('/api/admin/billing-eventos', { cache: 'no-store' }),
                 ])
 
                 setCicloPecuario(cicloRows)
@@ -330,10 +326,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setAssinaturasDetalhadas((assinaturasDetalhadasRes.data || []) as AssinaturaDetalhada[])
                 }
 
-                if (billingEventosRes.error) {
-                    console.error('Erro ao buscar boigordo_billing_eventos:', billingEventosRes.error)
-                } else {
-                    setBillingEventos((billingEventosRes.data || []) as BillingEvento[])
+                try {
+                    const billingJson = await billingEventosHttpRes.json() as { ok: boolean; rows?: BillingEvento[]; error?: string }
+                    if (!billingEventosHttpRes.ok || !billingJson.ok) {
+                        console.error('Erro ao buscar boigordo_billing_eventos via API:', billingJson.error || billingEventosHttpRes.statusText)
+                    } else {
+                        setBillingEventos((billingJson.rows || []) as BillingEvento[])
+                    }
+                } catch (err) {
+                    console.error('Falha ao decodificar resposta de billing-eventos:', err)
                 }
             } catch (err) {
                 console.error('Erro na conexão com Supabase:', err)

@@ -183,7 +183,7 @@ async function findUsuarioIdByClient(
   supabaseAdmin: any,
   payload: WebhookPayload
 ): Promise<string | null> {
-  const email = payload.client?.email || payload.lead?.email
+  const email = (payload.client?.email || payload.lead?.email || "").trim().toLowerCase() || null
   const phone = normalizePhoneE164(payload.client?.cellphone || payload.lead?.cellphone)
 
   if (email) {
@@ -205,6 +205,46 @@ async function findUsuarioIdByClient(
   }
 
   return null
+}
+
+async function upsertUsuarioPerfilFromWebhook(
+  supabaseAdmin: any,
+  payload: WebhookPayload
+): Promise<string | null> {
+  const email = (payload.client?.email || payload.lead?.email || "").trim().toLowerCase() || null
+  const phone = normalizePhoneE164(payload.client?.cellphone || payload.lead?.cellphone)
+  const nome = (payload.client?.name || payload.lead?.name || "Cliente")?.trim() || "Cliente"
+
+  if (!phone && !email) return null
+
+  // Se já existir por email/telefone, reutiliza.
+  const usuarioExistente = await findUsuarioIdByClient(supabaseAdmin, payload)
+  if (usuarioExistente) return usuarioExistente
+
+  // Sem telefone não dá para inserir no perfil atual (campo obrigatório com formato E164).
+  if (!phone) return null
+
+  const usuarioId = crypto.randomUUID()
+
+  const { error } = await supabaseAdmin.from("boigordo_usuarios_perfil").insert({
+    usuario_id: usuarioId,
+    nome,
+    email,
+    telefone_whatsapp: phone,
+    status: "ATIVO",
+    papeis_mercado: [],
+    etapas_operacao: [],
+    dados_questionario: {},
+  })
+
+  if (error) {
+    // Em caso de corrida, tenta buscar novamente.
+    const retry = await findUsuarioIdByClient(supabaseAdmin, payload)
+    if (retry) return retry
+    throw new Error(`Falha ao criar usuário no perfil: ${error.message}`)
+  }
+
+  return usuarioId
 }
 
 async function upsertAssinaturaFromWebhook(
@@ -401,7 +441,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const usuarioId = await findUsuarioIdByClient(supabaseAdmin, payload)
+    const usuarioId = await upsertUsuarioPerfilFromWebhook(supabaseAdmin, payload)
     let assinaturaId: string | null = null
     let statusNovo: BillingStatus | null = null
 
@@ -433,7 +473,7 @@ export async function POST(req: NextRequest) {
         status_processamento: "PROCESSADO",
         tentativas: 1,
         processed_at: new Date().toISOString(),
-        erro: null,
+        erro: usuarioId ? null : "Evento processado sem vínculo de usuário (faltou email/telefone válido no payload).",
       })
       .eq("id", billingEvent.id)
 
