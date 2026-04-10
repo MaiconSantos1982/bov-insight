@@ -2,7 +2,7 @@ import cron from "node-cron";
 import { config } from "./config";
 import { logger } from "./logger";
 import { executarWorker } from "./worker";
-import { runAnalyticsAlertEngine } from "./analytics";
+import { runAnalyticsAlertEngine, runAnalyticsIngestionPipeline } from "./analytics";
 
 /**
  * Ponto de entrada do Worker.
@@ -93,6 +93,31 @@ async function main(): Promise<void> {
             logger.info(`  ✅ Agendado analytics:alertas: ${config.analyticsAlertCron}`);
         } else {
             logger.info("ℹ️ ANALYTICS_ALERT_CRON não definido. Alertas analíticos sem agendamento.");
+        }
+
+        if (config.analyticsIngestCron) {
+            if (!cron.validate(config.analyticsIngestCron)) {
+                logger.error(`❌ ANALYTICS_INGEST_CRON inválido: "${config.analyticsIngestCron}"`);
+                process.exit(1);
+            }
+
+            cron.schedule(
+                config.analyticsIngestCron,
+                async () => {
+                    logger.info(`⏰ Cron analytics:ingest disparado (${config.analyticsIngestCron})!`);
+                    try {
+                        await runAnalyticsIngestionPipeline();
+                    } catch (error) {
+                        logger.error("Falha no analytics:ingest. Continuando agendador...");
+                    }
+                },
+                {
+                    timezone: "America/Sao_Paulo",
+                }
+            );
+            logger.info(`  ✅ Agendado analytics:ingest: ${config.analyticsIngestCron}`);
+        } else {
+            logger.info("ℹ️ ANALYTICS_INGEST_CRON não definido. Ingestão analítica sem agendamento.");
         }
 
         logger.info(`💡 Para executar manualmente, use: npx ts-node src/index.ts --force`);

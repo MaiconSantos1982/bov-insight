@@ -86,6 +86,21 @@ const MESES_FULL: Record<string, string> = {
     dez: "Dezembro",
 };
 
+const CODIGO_MES_BGI: Record<string, string> = {
+    jan: "F",
+    fev: "G",
+    mar: "H",
+    abr: "J",
+    mai: "K",
+    jun: "M",
+    jul: "N",
+    ago: "Q",
+    set: "U",
+    out: "V",
+    nov: "X",
+    dez: "Z",
+};
+
 function extrairSiglaUf(item: DadoDatagroItem): string | null {
     const byCode = item.codigo.match(/_([A-Z]{2})_BR$/);
     if (byCode?.[1]) return byCode[1];
@@ -104,21 +119,22 @@ function formatUsdClean(valor: number): string {
     return valor.toFixed(2);
 }
 
-function nomeMesMercadoFuturo(nome: string): { label: string } {
+function nomeMesMercadoFuturo(nome: string): { label: string; codigoBgi: string | null } {
     const match = nome.match(/(Jan|Fev|Mar|Abr|Mai|Jun|Jul|Ago|Set|Out|Nov|Dez)\/(\d{2,4})/i);
-    if (!match) return { label: nome };
+    if (!match) return { label: nome, codigoBgi: null };
 
     const mesKey = match[1].toLowerCase();
     const nomeMes = MESES_FULL[mesKey] || nome;
+    const codigoBgi = CODIGO_MES_BGI[mesKey] || null;
     const anoAtual = new Date().getFullYear();
     const anoRaw = Number.parseInt(match[2], 10);
     const ano = match[2].length === 2 ? 2000 + anoRaw : anoRaw;
 
     if (ano !== anoAtual) {
-        return { label: `${nomeMes}/${ano}` };
+        return { label: `${nomeMes}/${ano}`, codigoBgi };
     }
 
-    return { label: nomeMes };
+    return { label: nomeMes, codigoBgi };
 }
 
 function montarMensagemBoiBrasil(itens: DadoDatagroItem[]): string {
@@ -144,7 +160,8 @@ function montarMensagemMercadoFuturo(itens: DadoDatagroItem[]): string {
 
     for (const item of validos) {
         const mes = nomeMesMercadoFuturo(item.nome);
-        linhas.push(`- ${mes.label}: ${formatBrl(item.preco ?? 0)}`);
+        const prefixo = mes.codigoBgi ? `BGI ${mes.codigoBgi} - ` : "";
+        linhas.push(`- ${prefixo}${mes.label}: ${formatBrl(item.preco ?? 0)}`);
     }
 
     if (!validos.length) {
