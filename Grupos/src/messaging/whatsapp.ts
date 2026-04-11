@@ -284,11 +284,15 @@ export async function enviarWhatsApp(dados: DadosCotacao): Promise<boolean> {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
     };
+    const safeHeaders = {
+        ...headers,
+        "x-api-key": apiKey ? `${apiKey.slice(0, 4)}***` : "",
+    };
 
     // Debug completo da requisição
     logger.info("📤 Enviando mensagem via WhatsApp...");
     logger.info("🔗 URL:", url);
-    logger.info("📋 Headers:", JSON.stringify(headers));
+    logger.info("📋 Headers:", JSON.stringify(safeHeaders));
     logger.info(`🧾 Quantidade de mensagens: ${mensagens.length}`);
 
     let enviadas = 0;
