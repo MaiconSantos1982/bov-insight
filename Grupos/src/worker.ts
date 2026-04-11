@@ -13,6 +13,15 @@ import fs from "fs";
 import { spawnSync } from "child_process";
 import { persistirHistoricoPrecos } from "./persistence/historico-precos";
 
+interface CacheCepea {
+    cepea_fisico_brl: number | null;
+    cepea_bezerro_brl: number | null;
+    cepea_milho_brl: number | null;
+    cepea_soja_brl: number | null;
+    cepea_fisico_usd: number | null;
+    cepea_data_referencia: string | null;
+}
+
 function garantirChromiumPlaywright(): void {
     const executablePath = chromium.executablePath();
     if (fs.existsSync(executablePath)) {
@@ -40,6 +49,53 @@ function garantirChromiumPlaywright(): void {
     }
 
     logger.success("✅ Chromium do Playwright instalado automaticamente.");
+}
+
+function recuperarUltimoCepeaValidoDosLogs(): CacheCepea | null {
+    try {
+        if (!fs.existsSync(config.logsDir)) {
+            return null;
+        }
+
+        const arquivos = fs
+            .readdirSync(config.logsDir)
+            .filter((nome) => /^resultado-\d{4}-\d{2}-\d{2}\.json$/.test(nome))
+            .sort()
+            .reverse();
+
+        for (const arquivo of arquivos) {
+            const caminho = `${config.logsDir}/${arquivo}`;
+            const bruto = fs.readFileSync(caminho, "utf-8");
+            const json = JSON.parse(bruto) as Partial<DadosCotacao>;
+
+            const temCepea =
+                json.cepea_fisico_brl != null ||
+                json.cepea_bezerro_brl != null ||
+                json.cepea_milho_brl != null ||
+                json.cepea_soja_brl != null;
+
+            if (!temCepea) {
+                continue;
+            }
+
+            return {
+                cepea_fisico_brl: json.cepea_fisico_brl ?? null,
+                cepea_bezerro_brl: json.cepea_bezerro_brl ?? null,
+                cepea_milho_brl: json.cepea_milho_brl ?? null,
+                cepea_soja_brl: json.cepea_soja_brl ?? null,
+                cepea_fisico_usd: json.cepea_fisico_usd ?? null,
+                cepea_data_referencia: json.cepea_data_referencia ?? null,
+            };
+        }
+
+        return null;
+    } catch (error) {
+        logger.warn(
+            "⚠️ Não foi possível recuperar último CEPEA válido dos logs:",
+            error instanceof Error ? error.message : String(error)
+        );
+        return null;
+    }
 }
 
 /**
@@ -140,6 +196,34 @@ export async function executarWorker(
             config.urls.cepeaSoja,
             "Soja"
         );
+
+        const cepeaTodosNulos =
+            resultadoCepea.dados?.valorBrl == null &&
+            resultadoBezerro.dados?.valorBrl == null &&
+            resultadoMilho.dados?.valorBrl == null &&
+            resultadoSoja.dados?.valorBrl == null;
+
+        let cepeaFisicoBrl = resultadoCepea.dados?.valorBrl ?? null;
+        let cepeaBezerroBrl = resultadoBezerro.dados?.valorBrl ?? null;
+        let cepeaMilhoBrl = resultadoMilho.dados?.valorBrl ?? null;
+        let cepeaSojaBrl = resultadoSoja.dados?.valorBrl ?? null;
+        let cepeaFisicoUsd = resultadoCepea.dados?.valorUsd ?? null;
+        let cepeaDataReferencia = resultadoCepea.dados?.data ?? null;
+
+        if (cepeaTodosNulos) {
+            const cache = recuperarUltimoCepeaValidoDosLogs();
+            if (cache) {
+                cepeaFisicoBrl = cache.cepea_fisico_brl;
+                cepeaBezerroBrl = cache.cepea_bezerro_brl;
+                cepeaMilhoBrl = cache.cepea_milho_brl;
+                cepeaSojaBrl = cache.cepea_soja_brl;
+                cepeaFisicoUsd = cache.cepea_fisico_usd;
+                cepeaDataReferencia = cache.cepea_data_referencia;
+                logger.warn(
+                    `⚠️ CEPEA indisponível agora (403). Usando último fechamento disponível (${cepeaDataReferencia ?? "sem data"}).`
+                );
+            }
+        }
 
         // ── Persistência no histórico Supabase ─────────────
         try {
@@ -262,12 +346,12 @@ export async function executarWorker(
         const dados: DadosCotacao = {
             data_extracao: new Date().toISOString(),
             fonte,
-            cepea_fisico_brl: resultadoCepea.dados?.valorBrl ?? null,
-            cepea_bezerro_brl: resultadoBezerro.dados?.valorBrl ?? null,
-            cepea_milho_brl: resultadoMilho.dados?.valorBrl ?? null,
-            cepea_soja_brl: resultadoSoja.dados?.valorBrl ?? null,
-            cepea_fisico_usd: resultadoCepea.dados?.valorUsd ?? null,
-            cepea_data_referencia: resultadoCepea.dados?.data ?? null,
+            cepea_fisico_brl: cepeaFisicoBrl,
+            cepea_bezerro_brl: cepeaBezerroBrl,
+            cepea_milho_brl: cepeaMilhoBrl,
+            cepea_soja_brl: cepeaSojaBrl,
+            cepea_fisico_usd: cepeaFisicoUsd,
+            cepea_data_referencia: cepeaDataReferencia,
             tradingview_futuro_brl: resultadoTv.dados?.preco ?? null,
             datagro_boi_brasil: resultadoDatagro?.dados?.boiBrasil ?? [],
             datagro_mercado_futuro: resultadoDatagro?.dados?.mercadoFuturo ?? [],
