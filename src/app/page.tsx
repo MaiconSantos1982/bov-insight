@@ -9,12 +9,9 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Line } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { TooltipProvider } from "@/components/ui/tooltip"
 import { PageHeader } from "@/components/page-header"
 import { PriceCard } from "@/components/price-card"
 import MobileStockWidget, { StockItem } from "@/components/stock-05"
-import MobileWeatherWidget from "@/components/weather-07"
-import DesktopWeatherWidget from "@/components/weather-01"
 import { useData } from "@/lib/data-provider"
 import { PRODUTOS } from "@/lib/supabase"
 
@@ -56,7 +53,7 @@ export default function DashboardPage() {
     const isSuperAdmin = process.env.NEXT_PUBLIC_IS_SUPER_ADMIN === "true"
 
     const chartData = useMemo(() => {
-        return getRelacaoTroca(globalDateRange, 'week')
+        return getRelacaoTroca(globalDateRange, 'day')
     }, [getRelacaoTroca, globalDateRange])
 
     const activeAlerts = alertas.filter(a => a.ativo).length
@@ -196,7 +193,6 @@ export default function DashboardPage() {
                 {/* Price Cards Mobile */}
                 <div className="flex sm:hidden w-full flex-col items-center gap-4">
                     <MobileStockWidget items={widgetItems} className="w-full max-w-[340px] shadow-sm bg-card hover:bg-card/90 transition-colors" />
-                    <MobileWeatherWidget className="w-full max-w-[340px]" />
                 </div>
 
                 {/* Price Cards Desktop */}
@@ -400,12 +396,6 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                {/* Desktop Weather Widget */}
-                <div className="hidden sm:flex w-full justify-center mt-4">
-                    <TooltipProvider>
-                        <DesktopWeatherWidget />
-                    </TooltipProvider>
-                </div>
             </div>
         </>
     )

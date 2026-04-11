@@ -40,7 +40,7 @@ export const config = {
 
     // WhatsApp
     whatsapp: {
-        groupId: process.env.WHATSAPP_GROUP_ID || "",
+        groupId: process.env.WHATSAPP_GROUP_ID || "555192049514@s.whatsapp.net",
     },
 
     // Cron (múltiplos horários separados por vírgula)

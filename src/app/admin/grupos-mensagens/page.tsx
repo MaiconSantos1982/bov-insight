@@ -63,6 +63,7 @@ export default function AdminGruposMensagensPage() {
   const [groups, setGroups] = useState<GrupoNotificacao[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [disparandoManual, setDisparandoManual] = useState(false)
   const [form, setForm] = useState<GroupFormState>(emptyForm())
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [groupToDelete, setGroupToDelete] = useState<GrupoNotificacao | null>(null)
@@ -192,6 +193,26 @@ export default function AdminGruposMensagensPage() {
     }
   }
 
+  async function handleDisparoManualTeste() {
+    setDisparandoManual(true)
+    try {
+      const response = await fetch("/api/admin/disparo-manual", { method: "POST" })
+      const payload = await response.json()
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Falha no disparo manual.")
+      }
+      toast.success("Disparo manual iniciado", {
+        description: "Confira os logs do grupos-server e o WhatsApp de destino.",
+      })
+    } catch (error) {
+      toast.error("Falha no disparo manual", {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setDisparandoManual(false)
+    }
+  }
+
   const sortedGroups = useMemo(() => [...groups].sort((a, b) => Number(b.ativo) - Number(a.ativo)), [groups])
 
   return (
@@ -213,10 +234,15 @@ export default function AdminGruposMensagensPage() {
                 <CardTitle className="text-base">Grupos de Notificação</CardTitle>
                 <CardDescription>Tipos e severidades por grupo</CardDescription>
               </div>
-              <Button size="sm" className="gap-2" onClick={openNewDialog}>
-                <Plus className="size-4" />
-                Novo Grupo
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={handleDisparoManualTeste} disabled={disparandoManual}>
+                  {disparandoManual ? "Disparando..." : "Teste Disparo Manual"}
+                </Button>
+                <Button size="sm" className="gap-2" onClick={openNewDialog}>
+                  <Plus className="size-4" />
+                  Novo Grupo
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
