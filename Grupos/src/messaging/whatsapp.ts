@@ -37,11 +37,6 @@ function montarMensagemCepea(dados: DadosCotacao): string {
         `🌱 *Soja:* R$ ${soja}`,
     ];
 
-    // Adiciona data de referência do CEPEA se disponível
-    if (dados.cepea_data_referencia) {
-        linhas.push(`📅 *Ref. CEPEA:* ${dados.cepea_data_referencia}`);
-    }
-
     linhas.push(``);
     linhas.push(`_Dados extraídos em ${dataFormatada}._`);
 
