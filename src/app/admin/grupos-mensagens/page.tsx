@@ -199,10 +199,16 @@ export default function AdminGruposMensagensPage() {
       const response = await fetch("/api/admin/disparo-manual", { method: "POST" })
       const payload = await response.json()
       if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || "Falha no disparo manual.")
+        const attempts = Array.isArray(payload?.attempts)
+          ? payload.attempts
+            .map((a: { strategy?: string; status?: number }) => `${a?.strategy || "?"}: ${a?.status ?? "?"}`)
+            .join(" | ")
+          : ""
+        const detail = attempts ? ` Tentativas: ${attempts}` : ""
+        throw new Error(`${payload?.error || "Falha no disparo manual."}${detail}`)
       }
       toast.success("Disparo manual iniciado", {
-        description: "Confira os logs do grupos-server e o WhatsApp de destino.",
+        description: `Estratégia: ${payload?.strategy || "n/a"}. Confira os logs do grupos-server e o WhatsApp de destino.`,
       })
     } catch (error) {
       toast.error("Falha no disparo manual", {
