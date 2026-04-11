@@ -68,8 +68,6 @@ export async function executarWorker(
     logger.info(`⏰ Hora: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`);
     logger.info("═══════════════════════════════════════════════");
 
-    let browser: Browser | null = null;
-
     try {
         // ── Fluxo DATAGRO ───────────────────────────────────
         if (fonte === "datagro") {
@@ -127,70 +125,21 @@ export async function executarWorker(
             return dados;
         }
 
-        // ── 1. Setup do Browser ──────────────────────────────
-        garantirChromiumPlaywright();
-        logger.info("🖥️  Iniciando navegador...");
-        browser = await chromium.launch({
-            headless: config.headless,
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled",
-            ],
-        });
-
-        // Contexto com user-agent real para evitar bloqueios
-        const context: BrowserContext = await browser.newContext({
-            userAgent:
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            viewport: { width: 1920, height: 1080 },
-            locale: "pt-BR",
-            timezoneId: "America/Sao_Paulo",
-        });
-
-        // Injeta script stealth para mascarar detecção de bot
-        await context.addInitScript(() => {
-            // Remove o flag de automação do navigator
-            Object.defineProperty(navigator, "webdriver", {
-                get: () => false,
-            });
-            // Simula plugins reais
-            Object.defineProperty(navigator, "plugins", {
-                get: () => [1, 2, 3, 4, 5],
-            });
-        });
-
-        // ── 2. Scrapers CEPEA ────────────────────────────────
+        // ── 1. Scrapers CEPEA (sem browser) ─────────────────
         logger.info("─── Etapa 1/2: CEPEA ───");
-        const pageCepea = await context.newPage();
-        const resultadoCepea = await scrapeCepea(pageCepea);
-        await pageCepea.close();
-
-        const pageBezerro = await context.newPage();
+        const resultadoCepea = await scrapeCepea();
         const resultadoBezerro = await scrapeCepeaIndicador(
-            pageBezerro,
             config.urls.cepeaBezerro,
             "Bezerro"
         );
-        await pageBezerro.close();
-
-        const pageMilho = await context.newPage();
         const resultadoMilho = await scrapeCepeaIndicador(
-            pageMilho,
             config.urls.cepeaMilho,
             "Milho"
         );
-        await pageMilho.close();
-
-        const pageSoja = await context.newPage();
         const resultadoSoja = await scrapeCepeaIndicador(
-            pageSoja,
             config.urls.cepeaSoja,
             "Soja"
         );
-        await pageSoja.close();
 
         // ── Persistência no histórico Supabase ─────────────
         try {
@@ -236,20 +185,80 @@ export async function executarWorker(
             logger.error("❌ Falha ao persistir histórico de preços no Supabase:", msg);
         }
 
-        // ── 3. Scraper TradingView (Boi Futuro) ──────────────
+        // ── 2. Scraper TradingView (Boi Futuro) ──────────────
         logger.info("─── Etapa 2/2: TradingView ───");
-        const pageTv = await context.newPage();
-        const resultadoTv = await scrapeTradingView(pageTv);
-        await pageTv.close();
+        let resultadoTv = {
+            sucesso: false,
+            dados: null,
+            erro: "TradingView não executado.",
+        } as Awaited<ReturnType<typeof scrapeTradingView>>;
 
-        // ── 4. Scraper DATAGRO opcional (modo TODOS) ─────────
+        let browser: Browser | null = null;
+        let context: BrowserContext | null = null;
+        try {
+            garantirChromiumPlaywright();
+            logger.info("🖥️  Iniciando navegador...");
+            browser = await chromium.launch({
+                headless: config.headless,
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-blink-features=AutomationControlled",
+                ],
+            });
+
+            context = await browser.newContext({
+                userAgent:
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport: { width: 1920, height: 1080 },
+                locale: "pt-BR",
+                timezoneId: "America/Sao_Paulo",
+            });
+
+            await context.addInitScript(() => {
+                Object.defineProperty(navigator, "webdriver", {
+                    get: () => false,
+                });
+                Object.defineProperty(navigator, "plugins", {
+                    get: () => [1, 2, 3, 4, 5],
+                });
+            });
+
+            const pageTv = await context.newPage();
+            resultadoTv = await scrapeTradingView(pageTv);
+            await pageTv.close();
+            await context.close();
+            context = null;
+            await browser.close();
+            browser = null;
+            logger.info("🔒 Navegador fechado.");
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            logger.warn("⚠️ TradingView indisponível nesta execução:", msg);
+            resultadoTv = {
+                sucesso: false,
+                dados: null,
+                erro: msg,
+            };
+        } finally {
+            if (context) {
+                await context.close();
+            }
+            if (browser) {
+                await browser.close();
+            }
+        }
+
+        // ── 3. Scraper DATAGRO opcional (modo TODOS) ─────────
         let resultadoDatagro = null as Awaited<ReturnType<typeof scrapeDatagroLivestock>> | null;
         if (fonte === "todos") {
             logger.info("─── Etapa extra: DATAGRO Livestock ───");
             resultadoDatagro = await scrapeDatagroLivestock();
         }
 
-        // ── 5. Consolidação ──────────────────────────────────
+        // ── 4. Consolidação ──────────────────────────────────
         const dados: DadosCotacao = {
             data_extracao: new Date().toISOString(),
             fonte,
@@ -265,7 +274,7 @@ export async function executarWorker(
             datagro_boi_mundo: resultadoDatagro?.dados?.boiMundo ?? [],
         };
 
-        // ── 6. Log e Saída ───────────────────────────────────
+        // ── 5. Log e Saída ───────────────────────────────────
         logger.info("═══════════════════════════════════════════════");
         logger.info("📦 RESULTADO CONSOLIDADO:");
         logger.info("═══════════════════════════════════════════════");
@@ -301,7 +310,7 @@ export async function executarWorker(
             logger.warn("⚠️ DATAGRO falhou: " + resultadoDatagro.erro);
         }
 
-        // ── 7. Envio via WhatsApp ────────────────────────────
+        // ── 6. Envio via WhatsApp ────────────────────────────
         const temDadosDatagro =
             dados.datagro_boi_brasil.length > 0 ||
             dados.datagro_mercado_futuro.length > 0 ||
@@ -325,11 +334,5 @@ export async function executarWorker(
         const msg = error instanceof Error ? error.message : String(error);
         logger.error("💥 Erro fatal no Worker:", msg);
         throw error;
-    } finally {
-        // Fecha o browser em qualquer cenário
-        if (browser) {
-            await browser.close();
-            logger.info("🔒 Navegador fechado.");
-        }
     }
 }
