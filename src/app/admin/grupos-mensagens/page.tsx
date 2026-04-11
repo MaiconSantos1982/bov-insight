@@ -205,10 +205,11 @@ export default function AdminGruposMensagensPage() {
             .join(" | ")
           : ""
         const detail = attempts ? ` Tentativas: ${attempts}` : ""
-        throw new Error(`${payload?.error || "Falha no disparo manual."}${detail}`)
+        const trace = payload?.traceId ? ` Trace: ${payload.traceId}` : ""
+        throw new Error(`${payload?.error || "Falha no disparo manual."}${detail}${trace}`)
       }
       toast.success("Disparo manual iniciado", {
-        description: `Estratégia: ${payload?.strategy || "n/a"}. Confira os logs do grupos-server e o WhatsApp de destino.`,
+        description: `Estratégia: ${payload?.strategy || "n/a"}${payload?.traceId ? ` | Trace: ${payload.traceId}` : ""}. Confira os logs do grupos-server e o WhatsApp de destino.`,
       })
     } catch (error) {
       toast.error("Falha no disparo manual", {

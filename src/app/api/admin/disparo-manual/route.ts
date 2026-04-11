@@ -32,10 +32,12 @@ async function callGruposServer(url: URL, execToken: string) {
 }
 
 export async function POST() {
+  const traceId = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const gruposServerUrlRaw = process.env.GROUPS_SERVER_URL
   const execToken = process.env.GROUPS_EXEC_TOKEN || process.env.EXEC_TOKEN || ""
 
   if (!gruposServerUrlRaw) {
+    console.error(`[disparo-manual][${traceId}] GROUPS_SERVER_URL não configurada`)
     return NextResponse.json(
       { ok: false, error: "GROUPS_SERVER_URL não configurada." },
       { status: 500 }
@@ -43,16 +45,25 @@ export async function POST() {
   }
 
   const gruposServerUrl = normalizeBaseUrl(gruposServerUrlRaw)
+  console.info(
+    `[disparo-manual][${traceId}] iniciado baseUrl=${gruposServerUrl} token=${execToken ? "presente" : "ausente"}`
+  )
 
   try {
     const datagroUrl = new URL("/api/executar", gruposServerUrl)
     datagroUrl.searchParams.set("fonte", "datagro")
     datagroUrl.searchParams.set("enviarMensagem", "true")
 
+    console.info(`[disparo-manual][${traceId}] tentativa=datagro url=${datagroUrl.toString()}`)
     const datagroResult = await callGruposServer(datagroUrl, execToken)
+    console.info(
+      `[disparo-manual][${traceId}] resultado=datagro status=${datagroResult.response.status}`
+    )
     if (datagroResult.response.ok) {
+      console.info(`[disparo-manual][${traceId}] concluído strategy=datagro`)
       return NextResponse.json({
         ok: true,
+        traceId,
         strategy: "datagro",
         payload: datagroResult.payload,
       })
@@ -62,10 +73,16 @@ export async function POST() {
     fullUrl.searchParams.set("fonte", "todos")
     fullUrl.searchParams.set("enviarMensagem", "true")
 
+    console.info(`[disparo-manual][${traceId}] tentativa=todos url=${fullUrl.toString()}`)
     const fullResult = await callGruposServer(fullUrl, execToken)
+    console.info(
+      `[disparo-manual][${traceId}] resultado=todos status=${fullResult.response.status}`
+    )
     if (fullResult.response.ok) {
+      console.info(`[disparo-manual][${traceId}] concluído strategy=todos`)
       return NextResponse.json({
         ok: true,
+        traceId,
         strategy: "todos",
         payload: fullResult.payload,
         fallbackFrom: {
@@ -79,6 +96,7 @@ export async function POST() {
     return NextResponse.json(
       {
         ok: false,
+        traceId,
         error: "Falha no disparo manual do grupos-server em todas as estratégias.",
         attempts: [
           { strategy: "datagro", status: datagroResult.response.status, payload: datagroResult.payload },
@@ -88,10 +106,13 @@ export async function POST() {
       { status: 502 }
     )
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`[disparo-manual][${traceId}] erro fatal: ${message}`)
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : String(error),
+        traceId,
+        error: message,
         groupsServerUrl,
       },
       { status: 500 }
