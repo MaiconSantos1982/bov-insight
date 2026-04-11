@@ -120,19 +120,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         ascending?: boolean
                         fromDateField?: string
                         fromDateValue?: string
+                        maxRows?: number
                     }
                 ): Promise<T[]> {
                     const pageSize = 1000
                     let from = 0
                     let hasMore = true
                     const rows: T[] = []
+                    const maxRows = options?.maxRows
 
                     while (hasMore) {
+                        if (typeof maxRows === "number" && rows.length >= maxRows) {
+                            break
+                        }
+
+                        const pageEnd = typeof maxRows === "number"
+                            ? Math.min(from + pageSize - 1, maxRows - 1)
+                            : from + pageSize - 1
+
+                        if (pageEnd < from) {
+                            break
+                        }
+
                         let query = supabase
                             .from(table)
                             .select('*')
                             .order(options?.orderBy || 'created_at', { ascending: options?.ascending ?? true })
-                            .range(from, from + pageSize - 1)
+                            .range(from, pageEnd)
 
                         if (options?.fromDateField && options?.fromDateValue) {
                             query = query.gte(options.fromDateField, options.fromDateValue)
@@ -147,7 +161,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         const chunk = (data || []) as T[]
                         rows.push(...chunk)
                         from += pageSize
-                        hasMore = chunk.length === pageSize
+                        hasMore = chunk.length === (pageEnd - from + 1)
                     }
 
                     return rows
@@ -176,6 +190,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         ascending: false,
                         fromDateField: 'data',
                         fromDateValue: threeYearsAgo,
+                        // Evita paginação profunda via offset na view (timeout em alguns projetos Supabase).
+                        maxRows: 2000,
                     }),
                     fetchAllRows<EscalaAbateRegional>('boigordo_view_escala_abate_regional', {
                         orderBy: 'data',

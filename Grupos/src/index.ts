@@ -1,8 +1,109 @@
 import cron from "node-cron";
+import express from "express";
 import { config } from "./config";
 import { logger } from "./logger";
 import { executarWorker } from "./worker";
 import { runAnalyticsAlertEngine, runAnalyticsIngestionPipeline } from "./analytics";
+import { FonteDados } from "./types";
+
+let executando = false;
+
+function extrairTokenExec(req: express.Request): string {
+    const authHeader = req.header("authorization") || "";
+    const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (bearerMatch?.[1]) {
+        return bearerMatch[1].trim();
+    }
+
+    const headerToken = req.header("x-exec-token");
+    if (headerToken) {
+        return headerToken.trim();
+    }
+
+    const queryToken = req.query.token;
+    if (typeof queryToken === "string") {
+        return queryToken.trim();
+    }
+
+    return "";
+}
+
+async function executarComLock(
+    opcoes: { fonte?: FonteDados; enviarMensagem?: boolean },
+    origemLog: string
+) {
+    if (executando) {
+        throw new Error("Uma execução já está em andamento.");
+    }
+
+    executando = true;
+    try {
+        logger.info(`${origemLog} Iniciando worker (fonte=${opcoes.fonte ?? "cepea"}, enviarMensagem=${opcoes.enviarMensagem !== false})`);
+        return await executarWorker(opcoes);
+    } finally {
+        executando = false;
+    }
+}
+
+function iniciarServidorControle() {
+    const app = express();
+    const port = Number(process.env.PORT || 8080);
+
+    app.get("/health", (_req, res) => {
+        res.json({ ok: true, executando, mode: "scheduler+api" });
+    });
+
+    app.get("/api/status", (_req, res) => {
+        res.json({
+            ok: true,
+            executando,
+            cronSchedules: config.cronSchedules,
+            analyticsAlertCron: config.analyticsAlertCron,
+            analyticsIngestCron: config.analyticsIngestCron,
+        });
+    });
+
+    app.get("/api/executar", async (req, res) => {
+        const tokenEsperado = config.security.execToken;
+        if (tokenEsperado) {
+            const tokenRecebido = extrairTokenExec(req);
+            if (tokenRecebido !== tokenEsperado) {
+                logger.warn("⛔ Tentativa de execução sem token válido.");
+                return res.status(401).json({
+                    sucesso: false,
+                    erro: "Não autorizado. Token inválido.",
+                });
+            }
+        }
+
+        const fonteQuery = String(req.query.fonte || "todos").toLowerCase();
+        const fonte: FonteDados =
+            fonteQuery === "datagro" || fonteQuery === "todos"
+                ? fonteQuery
+                : "cepea";
+
+        const enviarMensagemParam = String(req.query.enviarMensagem ?? "true").toLowerCase();
+        const enviarMensagem = !(enviarMensagemParam === "false" || enviarMensagemParam === "0" || enviarMensagemParam === "nao");
+
+        try {
+            const dados = await executarComLock(
+                { fonte, enviarMensagem },
+                "🔄 [api/executar]"
+            );
+            return res.json({ sucesso: true, dados });
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            if (msg.includes("andamento")) {
+                return res.status(429).json({ sucesso: false, erro: msg });
+            }
+            return res.status(500).json({ sucesso: false, erro: msg });
+        }
+    });
+
+    app.listen(port, () => {
+        logger.info(`🌐 API de controle do agendador ativa em http://localhost:${port}`);
+    });
+}
 
 /**
  * Ponto de entrada do Worker.
@@ -40,6 +141,8 @@ async function main(): Promise<void> {
 
         process.exit(0);
     } else {
+        iniciarServidorControle();
+
         // ── Modo Automático (Cron) ───────────────────────
         const schedules = config.cronSchedules;
 
@@ -57,7 +160,7 @@ async function main(): Promise<void> {
                 async () => {
                     logger.info(`⏰ Cron disparado (${schedule})! Iniciando Worker...`);
                     try {
-                        await executarWorker();
+                        await executarComLock({ fonte: "cepea", enviarMensagem: true }, "⏰ [cron:cotacoes]");
                     } catch (error) {
                         logger.error("Worker encerrou com erro nesta execução. Continuando agendador...");
                     }
