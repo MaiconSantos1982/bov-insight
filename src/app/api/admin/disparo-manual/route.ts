@@ -50,25 +50,6 @@ export async function POST() {
   )
 
   try {
-    const datagroUrl = new URL("/api/executar", gruposServerUrl)
-    datagroUrl.searchParams.set("fonte", "datagro")
-    datagroUrl.searchParams.set("enviarMensagem", "true")
-
-    console.info(`[disparo-manual][${traceId}] tentativa=datagro url=${datagroUrl.toString()}`)
-    const datagroResult = await callGruposServer(datagroUrl, execToken)
-    console.info(
-      `[disparo-manual][${traceId}] resultado=datagro status=${datagroResult.response.status}`
-    )
-    if (datagroResult.response.ok) {
-      console.info(`[disparo-manual][${traceId}] concluído strategy=datagro`)
-      return NextResponse.json({
-        ok: true,
-        traceId,
-        strategy: "datagro",
-        payload: datagroResult.payload,
-      })
-    }
-
     const fullUrl = new URL("/api/executar", gruposServerUrl)
     fullUrl.searchParams.set("fonte", "todos")
     fullUrl.searchParams.set("enviarMensagem", "true")
@@ -85,10 +66,29 @@ export async function POST() {
         traceId,
         strategy: "todos",
         payload: fullResult.payload,
+      })
+    }
+
+    const datagroUrl = new URL("/api/executar", gruposServerUrl)
+    datagroUrl.searchParams.set("fonte", "datagro")
+    datagroUrl.searchParams.set("enviarMensagem", "true")
+
+    console.info(`[disparo-manual][${traceId}] tentativa=datagro url=${datagroUrl.toString()}`)
+    const datagroResult = await callGruposServer(datagroUrl, execToken)
+    console.info(
+      `[disparo-manual][${traceId}] resultado=datagro status=${datagroResult.response.status}`
+    )
+    if (datagroResult.response.ok) {
+      console.info(`[disparo-manual][${traceId}] concluído strategy=datagro`)
+      return NextResponse.json({
+        ok: true,
+        traceId,
+        strategy: "datagro",
+        payload: datagroResult.payload,
         fallbackFrom: {
-          strategy: "datagro",
-          status: datagroResult.response.status,
-          payload: datagroResult.payload,
+          strategy: "todos",
+          status: fullResult.response.status,
+          payload: fullResult.payload,
         },
       })
     }
@@ -99,8 +99,8 @@ export async function POST() {
         traceId,
         error: "Falha no disparo manual do grupos-server em todas as estratégias.",
         attempts: [
-          { strategy: "datagro", status: datagroResult.response.status, payload: datagroResult.payload },
           { strategy: "todos", status: fullResult.response.status, payload: fullResult.payload },
+          { strategy: "datagro", status: datagroResult.response.status, payload: datagroResult.payload },
         ],
       },
       { status: 502 }
