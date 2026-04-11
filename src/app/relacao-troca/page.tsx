@@ -38,7 +38,7 @@ const chartConfig = {
     soja: { label: "Soja (R$/sc)", color: "var(--chart-4)" },
     relacao_boi_milho: { label: "Boi/Milho (sacas)", color: "var(--chart-1)" },
     relacao_boi_soja: { label: "Boi/Soja (sacas)", color: "var(--chart-3)" },
-    relacao_boi_bezerro: { label: "Boi/Bezerro (cab/@)", color: "var(--chart-2)" },
+    relacao_boi_bezerro: { label: "Boi/Bezerro (@ por bezerro)", color: "var(--chart-2)" },
 } satisfies ChartConfig
 
 type Agrupamento = 'day' | 'week' | 'month'
@@ -57,7 +57,10 @@ export default function RelacaoTrocaPage() {
             const relacao_boi_milho = d.boi_gordo && d.milho ? Math.round((d.boi_gordo / d.milho) * 100) / 100 : null
             const relacao_boi_soja = d.boi_gordo && d.soja ? Math.round((d.boi_gordo / d.soja) * 100) / 100 : null
             const relacao_boi_bezerro = d.boi_gordo && d.bezerro ? Math.round((d.bezerro / d.boi_gordo) * 100) / 100 : null
-            return { ...d, relacao_boi_milho, relacao_boi_soja, relacao_boi_bezerro }
+            const relacao_1_boi_20a_para_bezerro = d.boi_gordo && d.bezerro
+                ? Math.round((((d.boi_gordo * 20) / d.bezerro) * 100)) / 100
+                : null
+            return { ...d, relacao_boi_milho, relacao_boi_soja, relacao_boi_bezerro, relacao_1_boi_20a_para_bezerro }
         })
     }, [rawData])
 
@@ -73,11 +76,16 @@ export default function RelacaoTrocaPage() {
         return last ? last[key] : 0
     }, [chartData, comparacao])
 
+    const currentRelacaoBoiBezerro1ParaX = useMemo(() => {
+        const last = chartData[chartData.length - 1]
+        return last?.relacao_1_boi_20a_para_bezerro ?? null
+    }, [chartData])
+
     const relacaoLabel = comparacao === 'milho'
         ? 'sacas de milho por arroba'
         : comparacao === 'soja'
             ? 'sacas de soja por arroba'
-            : 'arrobas por bezerro'
+            : 'arrobas de boi para comprar 1 bezerro'
 
     return (
         <>
@@ -138,7 +146,12 @@ export default function RelacaoTrocaPage() {
                                     <p className="text-2xl font-bold mt-1 tabular-nums">
                                         {chartData.length ? (chartData[chartData.length - 1]?.relacao_boi_bezerro?.toFixed(1) || '—') : '—'}
                                     </p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">arrobas por bezerro</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">arrobas para comprar 1 bezerro</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        {currentRelacaoBoiBezerro1ParaX !== null
+                                            ? `Relação 1 boi (20@) : ${currentRelacaoBoiBezerro1ParaX.toFixed(2)} bezerros`
+                                            : "Relação 1 boi (20@): —"}
+                                    </p>
                                 </div>
                                 <div className={`size-3 rounded-full ${comparacao === 'bezerro' ? 'bg-chart-2 animate-pulse-dot' : 'bg-muted'}`} />
                             </div>
@@ -157,7 +170,9 @@ export default function RelacaoTrocaPage() {
                                 </CardDescription>
                             </div>
                             <Badge variant="outline" className="text-xs gap-1.5">
-                                Relação atual: <span className="font-bold text-primary">{currentRelacao?.toFixed(2) || '—'}</span> {relacaoLabel}
+                                {comparacao === 'bezerro'
+                                    ? <>Relação atual: <span className="font-bold text-primary">{currentRelacaoBoiBezerro1ParaX?.toFixed(2) || '—'}</span> bezerros por 1 boi de 20@</>
+                                    : <>Relação atual: <span className="font-bold text-primary">{currentRelacao?.toFixed(2) || '—'}</span> {relacaoLabel}</>}
                             </Badge>
                         </div>
                     </CardHeader>
