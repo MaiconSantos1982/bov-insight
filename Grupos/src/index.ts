@@ -160,7 +160,7 @@ async function main(): Promise<void> {
                 async () => {
                     logger.info(`⏰ Cron disparado (${schedule})! Iniciando Worker...`);
                     try {
-                        await executarComLock({ fonte: "cepea", enviarMensagem: true }, "⏰ [cron:cotacoes]");
+                        await executarComLock({ fonte: "todos", enviarMensagem: true }, "⏰ [cron:cotacoes]");
                     } catch (error) {
                         logger.error("Worker encerrou com erro nesta execução. Continuando agendador...");
                     }
