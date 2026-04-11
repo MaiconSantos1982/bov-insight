@@ -184,6 +184,12 @@ function montarMensagemBoiMundo(itens: DadoDatagroItem[]): string {
 }
 
 export function montarMensagensWhatsApp(dados: DadosCotacao): string[] {
+    const temDadosCepea =
+        dados.cepea_fisico_brl != null ||
+        dados.cepea_bezerro_brl != null ||
+        dados.cepea_milho_brl != null ||
+        dados.cepea_soja_brl != null;
+
     if (dados.fonte === "datagro") {
         return [
             montarMensagemBoiBrasil(dados.datagro_boi_brasil),
@@ -193,12 +199,18 @@ export function montarMensagensWhatsApp(dados: DadosCotacao): string[] {
     }
 
     if (dados.fonte === "todos") {
-        return [
-            montarMensagemCepea(dados),
+        const mensagens: string[] = [];
+        if (temDadosCepea) {
+            mensagens.push(montarMensagemCepea(dados));
+        }
+
+        mensagens.push(
             montarMensagemBoiBrasil(dados.datagro_boi_brasil),
             montarMensagemMercadoFuturo(dados.datagro_mercado_futuro),
             montarMensagemBoiMundo(dados.datagro_boi_mundo),
-        ];
+        );
+
+        return mensagens;
     }
 
     return [montarMensagemCepea(dados)];
