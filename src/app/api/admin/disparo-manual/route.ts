@@ -113,7 +113,7 @@ export async function POST() {
         ok: false,
         traceId,
         error: message,
-        groupsServerUrl,
+        gruposServerUrl,
       },
       { status: 500 }
     )
