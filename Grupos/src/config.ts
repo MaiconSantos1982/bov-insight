@@ -44,7 +44,7 @@ export const config = {
     },
 
     // Cron (múltiplos horários separados por vírgula)
-    cronSchedules: (process.env.CRON_SCHEDULE || "0 5 * * *,0 10 * * *")
+    cronSchedules: (process.env.CRON_SCHEDULE || "0 19 * * 1-5")
         .split(",")
         .map((s) => s.trim()),
 
