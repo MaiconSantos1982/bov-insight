@@ -160,8 +160,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
                         const chunk = (data || []) as T[]
                         rows.push(...chunk)
+                        const expectedChunkSize = pageEnd - from + 1
                         from += pageSize
-                        hasMore = chunk.length === (pageEnd - from + 1)
+                        hasMore = chunk.length === expectedChunkSize
                     }
 
                     return rows
@@ -173,6 +174,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     ascending: true,
                     fromDateField: 'data',
                     fromDateValue: threeYearsAgo,
+                    maxRows: 10000,
                 })
 
                 console.log(`[BovInsight] Carregados ${allData.length} registros do Supabase`)

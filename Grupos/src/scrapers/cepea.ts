@@ -10,6 +10,85 @@ const CEPEA_HTTP_HEADERS = {
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 };
 
+function resumirResposta(data: unknown, maxLen = 500): string | null {
+    if (data == null) return null;
+
+    const bruto =
+        typeof data === "string"
+            ? data
+            : (() => {
+                  try {
+                      return JSON.stringify(data);
+                  } catch {
+                      return String(data);
+                  }
+              })();
+
+    const normalizado = bruto.replace(/\s+/g, " ").trim();
+    return normalizado.length > maxLen
+        ? `${normalizado.slice(0, maxLen)}...`
+        : normalizado;
+}
+
+function extrairHeadersRelevantes(headers: unknown): Record<string, string> {
+    if (!headers || typeof headers !== "object") {
+        return {};
+    }
+
+    const src = headers as Record<string, unknown>;
+    const relevantes = [
+        "content-type",
+        "server",
+        "cf-ray",
+        "x-cache",
+        "x-request-id",
+        "retry-after",
+    ];
+
+    const out: Record<string, string> = {};
+    for (const chave of relevantes) {
+        const valor = src[chave];
+        if (typeof valor === "string" && valor.trim().length) {
+            out[chave] = valor;
+        }
+    }
+    return out;
+}
+
+function formatarErroHttpCepea(error: unknown, url: string): {
+    mensagem: string;
+    contexto?: Record<string, unknown>;
+} {
+    if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const statusText = error.response?.statusText || null;
+        const metodo = error.config?.method?.toUpperCase() || "GET";
+        const body = resumirResposta(error.response?.data);
+        const headers = extrairHeadersRelevantes(error.response?.headers);
+
+        const mensagem =
+            status != null
+                ? `HTTP ${status}${statusText ? ` ${statusText}` : ""}`
+                : error.message;
+
+        return {
+            mensagem,
+            contexto: {
+                metodo,
+                url,
+                status: status ?? null,
+                statusText,
+                code: error.code ?? null,
+                headers,
+                body,
+            },
+        };
+    }
+
+    const msg = error instanceof Error ? error.message : String(error);
+    return { mensagem: msg };
+}
+
 function decodeEntities(input: string): string {
     return input
         .replace(/&nbsp;/gi, " ")
@@ -80,7 +159,8 @@ async function baixarIndicadorCepea(url: string, nome: string): Promise<string[]
 export async function scrapeCepea(
 ): Promise<ResultadoScraper<DadosCepea>> {
     try {
-        const cells = await baixarIndicadorCepea(config.urls.cepea, "Boi Gordo");
+        const url = config.urls.cepea;
+        const cells = await baixarIndicadorCepea(url, "Boi Gordo");
         if (cells.length < 5) {
             throw new Error(
                 `Dados incompletos do CEPEA (Boi Gordo): colunas=${cells.length}`
@@ -96,9 +176,9 @@ export async function scrapeCepea(
         logger.success("✅ CEPEA extraído com sucesso!", resultado);
         return { sucesso: true, dados: resultado };
     } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        logger.error("❌ Falha ao extrair CEPEA:", msg);
-        return { sucesso: false, dados: null, erro: msg };
+        const detalhe = formatarErroHttpCepea(error, config.urls.cepea);
+        logger.error("❌ Falha ao extrair CEPEA:", detalhe.contexto ?? detalhe.mensagem);
+        return { sucesso: false, dados: null, erro: detalhe.mensagem };
     }
 }
 
@@ -124,8 +204,8 @@ export async function scrapeCepeaIndicador(
         logger.success(`✅ CEPEA ${nome} extraído com sucesso!`, resultado);
         return { sucesso: true, dados: resultado };
     } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        logger.error(`❌ Falha ao extrair CEPEA ${nome}:`, msg);
-        return { sucesso: false, dados: null, erro: msg };
+        const detalhe = formatarErroHttpCepea(error, url);
+        logger.error(`❌ Falha ao extrair CEPEA ${nome}:`, detalhe.contexto ?? detalhe.mensagem);
+        return { sucesso: false, dados: null, erro: detalhe.mensagem };
     }
 }

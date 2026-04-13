@@ -8,8 +8,15 @@ import { formatBrl } from "../utils";
  * Monta a mensagem CEPEA/TradingView para envio no WhatsApp
  */
 function montarMensagemCepea(dados: DadosCotacao): string {
+    const fallbackBoi = obterFallbackCepeaViaDatagro(dados.datagro_boi_brasil);
+    const usandoFallbackBoi =
+        dados.cepea_fisico_brl == null && fallbackBoi.valor != null;
     const cepeaBrl =
-        dados.cepea_fisico_brl != null ? formatBrl(dados.cepea_fisico_brl) : "N/D";
+        dados.cepea_fisico_brl != null
+            ? formatBrl(dados.cepea_fisico_brl)
+            : fallbackBoi.valor != null
+                ? formatBrl(fallbackBoi.valor)
+                : "N/D";
     const bezerro =
         dados.cepea_bezerro_brl != null ? formatBrl(dados.cepea_bezerro_brl) : "N/D";
     const milho =
@@ -36,6 +43,11 @@ function montarMensagemCepea(dados: DadosCotacao): string {
         `🌽 *Milho:* R$ ${milho}`,
         `🌱 *Soja:* R$ ${soja}`,
     ];
+
+    if (usandoFallbackBoi && fallbackBoi.origem) {
+        linhas.push(``);
+        linhas.push(`⚠️ CEPEA indisponível no momento. Boi Físico via *${fallbackBoi.origem}*.`);
+    }
 
     linhas.push(``);
     linhas.push(`_Dados extraídos em ${dataFormatada}._`);
@@ -114,6 +126,25 @@ function formatUsdClean(valor: number): string {
     return valor.toFixed(2);
 }
 
+function obterFallbackCepeaViaDatagro(itens: DadoDatagroItem[]): {
+    valor: number | null;
+    origem: string | null;
+} {
+    const validos = itens.filter((item) => item.preco != null);
+    if (!validos.length) {
+        return { valor: null, origem: null };
+    }
+
+    const sp = validos.find((item) => extrairSiglaUf(item) === "SP");
+    if (sp?.preco != null) {
+        return { valor: sp.preco, origem: "DATAGRO/SP" };
+    }
+
+    const media =
+        validos.reduce((acc, item) => acc + (item.preco ?? 0), 0) / validos.length;
+    return { valor: Number(media.toFixed(2)), origem: "DATAGRO/média Brasil" };
+}
+
 function nomeMesMercadoFuturo(nome: string): { label: string; codigoBgi: string | null } {
     const match = nome.match(/(Jan|Fev|Mar|Abr|Mai|Jun|Jul|Ago|Set|Out|Nov|Dez)\/(\d{2,4})/i);
     if (!match) return { label: nome, codigoBgi: null };
@@ -184,12 +215,6 @@ function montarMensagemBoiMundo(itens: DadoDatagroItem[]): string {
 }
 
 export function montarMensagensWhatsApp(dados: DadosCotacao): string[] {
-    const temDadosCepea =
-        dados.cepea_fisico_brl != null ||
-        dados.cepea_bezerro_brl != null ||
-        dados.cepea_milho_brl != null ||
-        dados.cepea_soja_brl != null;
-
     if (dados.fonte === "datagro") {
         return [
             montarMensagemBoiBrasil(dados.datagro_boi_brasil),
@@ -199,18 +224,12 @@ export function montarMensagensWhatsApp(dados: DadosCotacao): string[] {
     }
 
     if (dados.fonte === "todos") {
-        const mensagens: string[] = [];
-        if (temDadosCepea) {
-            mensagens.push(montarMensagemCepea(dados));
-        }
-
-        mensagens.push(
+        return [
+            montarMensagemCepea(dados),
             montarMensagemBoiBrasil(dados.datagro_boi_brasil),
             montarMensagemMercadoFuturo(dados.datagro_mercado_futuro),
             montarMensagemBoiMundo(dados.datagro_boi_mundo),
-        );
-
-        return mensagens;
+        ];
     }
 
     return [montarMensagemCepea(dados)];
