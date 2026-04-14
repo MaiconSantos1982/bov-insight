@@ -1,7 +1,12 @@
 # Roadmap Técnico da Plataforma Pecuária (BovInsight)
 
-Atualizado em: 2026-04-07  
+Atualizado em: 2026-04-14  
 Status: documento base para planejamento e consulta de desenvolvimento.
+
+## Decisão de Produto (2026-04-14)
+- Módulo **Escala de Abate** descontinuado por baixa confiança dos dados.
+- Remover do sistema: ingestão, alertas, telas e navegação relacionados a escala de abate.
+- Não considerar lacuna em fins de semana no histórico CEPEA; referência operacional passa a ser D-1 útil.
 
 ## Status de execução (checkpoint 2026-04-07)
 - Fase 1: concluída.
@@ -77,7 +82,7 @@ Campos:
 - `index(data)`
 
 ### 3.3. Tabela `boigordo_escala_abate_historico`
-Finalidade: escala de abate por planta para consolidação regional.
+Status: **descontinuada em 2026-04-14** (não utilizar para novos desenvolvimentos).
 
 Campos:
 - `id`, `created_at`, `updated_at`
@@ -134,6 +139,7 @@ Campos:
 3. Upsert por `(praca_local, data)`.
 
 #### 3.6.3. `worker_escala_abate`
+Status: **descontinuado em 2026-04-14**.
 - Entrada: dados diários por planta.
 - Persistência: upsert em `boigordo_escala_abate_historico` por `(planta_id, data)`.
 
@@ -170,6 +176,7 @@ Campos:
 - `base_absoluta`, `base_percentual`, `media_base_pct`, `desvio_base_pct`, `situacao_base`.
 
 ### 3.9. View `boigordo_view_escala_abate_regional`
+Status: **descontinuada em 2026-04-14**.
 Lógica:
 1. Escala média ponderada por capacidade:
 - `dias_escala_media = sum(dias_escala * capacidade_abate_dia) / sum(capacidade_abate_dia)`.
@@ -201,7 +208,6 @@ Meta: disponibilizar dados novos no app principal.
 ### 3.12. Módulos de UI novos
 - Tela `Ciclo Pecuário`.
 - Tela `Base Regional`.
-- Tela `Escala de Abate`.
 - Tela `Exportações`.
 - Cards de risco/macrotendência no Dashboard (feature flag).
 
@@ -211,7 +217,6 @@ Meta: gerar ação prática a partir dos novos sinais.
 ### 3.13. Novos gatilhos de alerta
 - Mudança de fase do ciclo (`RETENCAO -> LIQUIDACAO`, etc.).
 - Base regional entrando em `BASE_FORTE`/`BASE_FRACA`.
-- Escala regional em `CURTA`/`LONGA`.
 - Dependência China acima de limite configurável.
 
 ### 3.14. Integração de notificação

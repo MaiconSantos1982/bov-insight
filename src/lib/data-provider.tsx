@@ -7,7 +7,6 @@ import {
     type HistoricoPreco,
     type CicloPecuarioClassificacao,
     type BaseRegionalStats,
-    type EscalaAbateRegional,
     type ExportacaoResumoMensal,
     type AlertaAnaliticoRecente,
     type UsuarioConfiguracao,
@@ -51,7 +50,6 @@ interface DataContextType {
     historicalData: HistoricoPreco[]
     cicloPecuario: CicloPecuarioClassificacao[]
     baseRegionalStats: BaseRegionalStats[]
-    escalaAbateRegional: EscalaAbateRegional[]
     exportacaoResumo: ExportacaoResumoMensal[]
     alertasAnaliticos: AlertaAnaliticoRecente[]
     usuarioConfiguracao: UsuarioConfiguracao | null
@@ -84,7 +82,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [historicalData, setHistoricalData] = useState<HistoricoPreco[]>([])
     const [cicloPecuario, setCicloPecuario] = useState<CicloPecuarioClassificacao[]>([])
     const [baseRegionalStats, setBaseRegionalStats] = useState<BaseRegionalStats[]>([])
-    const [escalaAbateRegional, setEscalaAbateRegional] = useState<EscalaAbateRegional[]>([])
     const [exportacaoResumo, setExportacaoResumo] = useState<ExportacaoResumoMensal[]>([])
     const [alertasAnaliticos, setAlertasAnaliticos] = useState<AlertaAnaliticoRecente[]>([])
     const [usuarioConfiguracao, setUsuarioConfiguracao] = useState<UsuarioConfiguracao | null>(null)
@@ -182,7 +179,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setHistoricalData(allData)
                 }
 
-                const [cicloRows, baseRows, escalaRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesHttpRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasHttpRes, billingEventosHttpRes] = await Promise.all([
+                const [cicloRows, baseRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesHttpRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasHttpRes, billingEventosHttpRes] = await Promise.all([
                     fetchAllRows<CicloPecuarioClassificacao>('boigordo_view_ciclo_pecuario_classificacao', {
                         orderBy: 'periodo',
                         ascending: true,
@@ -194,10 +191,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         fromDateValue: threeYearsAgo,
                         // Evita paginação profunda via offset na view (timeout em alguns projetos Supabase).
                         maxRows: 2000,
-                    }),
-                    fetchAllRows<EscalaAbateRegional>('boigordo_view_escala_abate_regional', {
-                        orderBy: 'data',
-                        ascending: true,
                     }),
                     fetchAllRows<ExportacaoResumoMensal>('boigordo_view_exportacao_resumo_mensal', {
                         orderBy: 'periodo',
@@ -260,7 +253,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
                 setCicloPecuario(cicloRows)
                 setBaseRegionalStats([...baseRows].sort((a, b) => a.data.localeCompare(b.data)))
-                setEscalaAbateRegional(escalaRows)
                 setExportacaoResumo(exportRows)
 
                 if (alertasRes.error) {
@@ -506,7 +498,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             historicalData,
             cicloPecuario,
             baseRegionalStats,
-            escalaAbateRegional,
             exportacaoResumo,
             alertasAnaliticos,
             usuarioConfiguracao,

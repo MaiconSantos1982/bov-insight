@@ -10,6 +10,13 @@ export interface HistoricoPrecoInput {
     valorUsd: number | null;
 }
 
+export interface HistoricoPrecoRecente {
+    produto: ProdutoHistorico;
+    data: string;
+    valorBrl: number;
+    valorUsd: number;
+}
+
 interface HistoricoPrecoPayload {
     data: string;
     produto: ProdutoHistorico;
@@ -59,9 +66,9 @@ function toPayload(input: HistoricoPrecoInput): HistoricoPrecoPayload | null {
 
 async function restRequest(
     pathWithQuery: string,
-    method: "DELETE" | "POST",
+    method: "DELETE" | "POST" | "GET",
     body?: unknown
-): Promise<void> {
+): Promise<Response> {
     const response = await fetch(`${config.supabase.url}/rest/v1${pathWithQuery}`, {
         method,
         headers: {
@@ -82,6 +89,8 @@ async function restRequest(
             `Falha REST ${method} ${pathWithQuery}: HTTP ${response.status} - ${txt}`
         );
     }
+
+    return response;
 }
 
 export async function persistirHistoricoPrecos(
@@ -115,4 +124,75 @@ export async function persistirHistoricoPrecos(
         persistidos: payloads.length,
         ignorados,
     };
+}
+
+export async function buscarUltimosHistoricosPorProduto(
+    produtos: ProdutoHistorico[]
+): Promise<Partial<Record<ProdutoHistorico, HistoricoPrecoRecente>>> {
+    garantirSupabaseConfigurado();
+    if (!produtos.length) {
+        return {};
+    }
+
+    const filtroProdutos = produtos.join(",");
+    const query =
+        `/boigordo_historico?select=produto,data,valor_brl,valor_usd` +
+        `&produto=in.(${filtroProdutos})&order=data.desc&limit=500`;
+    const response = await restRequest(query, "GET");
+    const rows = (await response.json()) as Array<{
+        produto: ProdutoHistorico;
+        data: string;
+        valor_brl: number;
+        valor_usd: number;
+    }>;
+
+    const latest: Partial<Record<ProdutoHistorico, HistoricoPrecoRecente>> = {};
+    for (const row of rows) {
+        if (latest[row.produto]) {
+            continue;
+        }
+        latest[row.produto] = {
+            produto: row.produto,
+            data: row.data,
+            valorBrl: Number(row.valor_brl),
+            valorUsd: Number(row.valor_usd),
+        };
+    }
+
+    return latest;
+}
+
+export async function buscarHistoricosPorData(
+    dataReferencia: string,
+    produtos: ProdutoHistorico[]
+): Promise<Partial<Record<ProdutoHistorico, HistoricoPrecoRecente>>> {
+    garantirSupabaseConfigurado();
+    if (!produtos.length) {
+        return {};
+    }
+
+    const dataIso = normalizarDataParaIso(dataReferencia);
+    const filtroProdutos = produtos.join(",");
+    const query =
+        `/boigordo_historico?select=produto,data,valor_brl,valor_usd` +
+        `&data=eq.${dataIso}&produto=in.(${filtroProdutos})`;
+    const response = await restRequest(query, "GET");
+    const rows = (await response.json()) as Array<{
+        produto: ProdutoHistorico;
+        data: string;
+        valor_brl: number;
+        valor_usd: number;
+    }>;
+
+    const byProduto: Partial<Record<ProdutoHistorico, HistoricoPrecoRecente>> = {};
+    for (const row of rows) {
+        byProduto[row.produto] = {
+            produto: row.produto,
+            data: row.data,
+            valorBrl: Number(row.valor_brl),
+            valorUsd: Number(row.valor_usd),
+        };
+    }
+
+    return byProduto;
 }

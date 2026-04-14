@@ -15,7 +15,6 @@ export const config = {
     analyticsSources: {
         cicloPecuarioUrl: process.env.ANALYTICS_CICLO_URL || "",
         baseRegionalUrl: process.env.ANALYTICS_BASE_REGIONAL_URL || "",
-        escalaAbateUrl: process.env.ANALYTICS_ESCALA_ABATE_URL || "",
         exportacaoUrl: process.env.ANALYTICS_EXPORTACAO_URL || "",
     },
     analyticsAlertRules: {
@@ -26,7 +25,6 @@ export const config = {
     analyticsIngestLookbackMonths: {
         ciclo: Number(process.env.ANALYTICS_CICLO_LOOKBACK_MONTHS || 24),
         base: Number(process.env.ANALYTICS_BASE_LOOKBACK_MONTHS || 6),
-        escala: Number(process.env.ANALYTICS_ESCALA_LOOKBACK_MONTHS || 3),
         exportacao: Number(process.env.ANALYTICS_EXPORTACAO_LOOKBACK_MONTHS || 24),
     },
 

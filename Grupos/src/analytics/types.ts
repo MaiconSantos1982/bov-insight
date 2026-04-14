@@ -24,15 +24,6 @@ export interface BaseRegionalRecord extends BaseRegionalInput {
   base_percentual: number;
 }
 
-export interface EscalaAbateRecord {
-  planta_id: string;
-  regiao: string;
-  data: string; // YYYY-MM-DD
-  dias_escala: number;
-  capacidade_abate_dia: number | null;
-  fonte: string;
-}
-
 export interface ExportacaoBovinaRecord {
   periodo: string; // YYYY-MM-DD
   destino: string;
@@ -55,13 +46,6 @@ export interface AnalyticsBaseViewRow {
   praca_local: string;
   base_percentual: number;
   situacao_base: "BASE_FORTE" | "BASE_NORMAL" | "BASE_FRACA";
-}
-
-export interface AnalyticsEscalaViewRow {
-  regiao: string;
-  data: string;
-  dias_escala_media: number;
-  classificacao: "CURTA" | "NORMAL" | "LONGA";
 }
 
 export interface AnalyticsExportacaoViewRow {

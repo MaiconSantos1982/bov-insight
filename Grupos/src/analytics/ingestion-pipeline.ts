@@ -2,16 +2,13 @@ import { config } from "../config";
 import { logger } from "../logger";
 import { runWorkerBaseRegional } from "./worker-base-regional";
 import { runWorkerCicloPecuario } from "./worker-ciclo-pecuario";
-import { runWorkerEscalaAbate } from "./worker-escala-abate";
 import { runWorkerExportacao } from "./worker-exportacao";
 import {
   fetchAbateFemeasFromSource,
   fetchBaseRegionalInputsFromSource,
-  fetchEscalasFromSource,
   fetchExportacoesFromSource,
   upsertAbateFemeas,
   upsertBaseRegional,
-  upsertEscalas,
   upsertExportacoes,
 } from "./supabase-repository";
 
@@ -30,7 +27,7 @@ export async function runAnalyticsIngestionPipeline(): Promise<void> {
   const lookback = config.analyticsIngestLookbackMonths;
 
   logger.info(
-    `[analytics:ingest] Iniciando pipeline completo (to=${to}, ciclo=${lookback.ciclo}m, base=${lookback.base}m, escala=${lookback.escala}m, exportacao=${lookback.exportacao}m)`
+    `[analytics:ingest] Iniciando pipeline completo (to=${to}, ciclo=${lookback.ciclo}m, base=${lookback.base}m, exportacao=${lookback.exportacao}m)`
   );
 
   const ciclo = await runWorkerCicloPecuario(
@@ -44,12 +41,6 @@ export async function runAnalyticsIngestionPipeline(): Promise<void> {
     { dataInicial: monthsAgoIso(lookback.base), dataFinal: to }
   );
   logger.info(`[analytics:ingest] base concluído`, base);
-
-  const escala = await runWorkerEscalaAbate(
-    { fetchEscalas: fetchEscalasFromSource, upsertEscalas },
-    { dataInicial: monthsAgoIso(lookback.escala), dataFinal: to }
-  );
-  logger.info(`[analytics:ingest] escala concluído`, escala);
 
   const exportacao = await runWorkerExportacao(
     { fetchExportacoes: fetchExportacoesFromSource, upsertExportacoes },

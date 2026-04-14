@@ -24,17 +24,6 @@ function montarMensagemCepea(dados: DadosCotacao): string {
     const soja =
         dados.cepea_soja_brl != null ? formatBrl(dados.cepea_soja_brl) : "N/D";
 
-    // ISO date → DD/MM/YYYY
-    const dataFormatada = new Date(dados.data_extracao).toLocaleDateString(
-        "pt-BR",
-        {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            timeZone: "America/Sao_Paulo",
-        }
-    );
-
     const linhas = [
         `📊 *Fechamento Diário | CEPEA*`,
         ``,
@@ -46,11 +35,8 @@ function montarMensagemCepea(dados: DadosCotacao): string {
 
     if (usandoFallbackBoi && fallbackBoi.origem) {
         linhas.push(``);
-        linhas.push(`⚠️ CEPEA indisponível no momento. Boi Físico via *${fallbackBoi.origem}*.`);
+        linhas.push(`⚠️ CEPEA indisponível no momento. Boi Físico exibido por contingência.`);
     }
-
-    linhas.push(``);
-    linhas.push(`_Dados extraídos em ${dataFormatada}._`);
 
     return linhas.join("\n");
 }
@@ -124,6 +110,39 @@ function extrairSiglaPais(item: DadoDatagroItem): string | null {
 
 function formatUsdClean(valor: number): string {
     return valor.toFixed(2);
+}
+
+function obterDataEmSaoPaulo(dataIso: string): { year: number; month: number; day: number } {
+    const partes = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Sao_Paulo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(new Date(dataIso));
+
+    const year = Number(partes.find((p) => p.type === "year")?.value ?? "0");
+    const month = Number(partes.find((p) => p.type === "month")?.value ?? "0");
+    const day = Number(partes.find((p) => p.type === "day")?.value ?? "0");
+
+    return { year, month, day };
+}
+
+function formatarDataReferenciaAnterior(dataExtracaoIso: string): string {
+    const baseSp = obterDataEmSaoPaulo(dataExtracaoIso);
+    const d = new Date(Date.UTC(baseSp.year, baseSp.month - 1, baseSp.day));
+    d.setUTCDate(d.getUTCDate() - 1);
+
+    return d.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+    });
+}
+
+function anexarDataReferencia(mensagem: string, dataExtracaoIso: string): string {
+    const dataRef = formatarDataReferenciaAnterior(dataExtracaoIso);
+    return `${mensagem}\n\nData de referência: ${dataRef}`;
 }
 
 function obterFallbackCepeaViaDatagro(itens: DadoDatagroItem[]): {
@@ -216,23 +235,25 @@ function montarMensagemBoiMundo(itens: DadoDatagroItem[]): string {
 
 export function montarMensagensWhatsApp(dados: DadosCotacao): string[] {
     if (dados.fonte === "datagro") {
-        return [
+        const mensagens = [
             montarMensagemBoiBrasil(dados.datagro_boi_brasil),
             montarMensagemMercadoFuturo(dados.datagro_mercado_futuro),
             montarMensagemBoiMundo(dados.datagro_boi_mundo),
         ];
+        return mensagens.map((m) => anexarDataReferencia(m, dados.data_extracao));
     }
 
     if (dados.fonte === "todos") {
-        return [
+        const mensagens = [
             montarMensagemCepea(dados),
             montarMensagemBoiBrasil(dados.datagro_boi_brasil),
             montarMensagemMercadoFuturo(dados.datagro_mercado_futuro),
             montarMensagemBoiMundo(dados.datagro_boi_mundo),
         ];
+        return mensagens.map((m) => anexarDataReferencia(m, dados.data_extracao));
     }
 
-    return [montarMensagemCepea(dados)];
+    return [anexarDataReferencia(montarMensagemCepea(dados), dados.data_extracao)];
 }
 
 /**

@@ -9,11 +9,9 @@ import {
   AlertaAnaliticoPendenteEnvio,
   AnalyticsBaseViewRow,
   AnalyticsCicloViewRow,
-  AnalyticsEscalaViewRow,
   AnalyticsExportacaoViewRow,
   BaseRegionalInput,
   BaseRegionalRecord,
-  EscalaAbateRecord,
   ExportacaoBovinaRecord,
   GrupoNotificacaoConfig,
 } from "./types";
@@ -175,18 +173,6 @@ export async function fetchBaseRegionalInputsFromSource(params: {
   }
 }
 
-export async function fetchEscalasFromSource(params: {
-  dataInicial: string;
-  dataFinal: string;
-}): Promise<EscalaAbateRecord[]> {
-  const rows = await fetchSourceArray<EscalaAbateRecord>(
-    config.analyticsSources.escalaAbateUrl,
-    "ANALYTICS_ESCALA_ABATE_URL"
-  );
-
-  return rows.filter((row) => row.data >= params.dataInicial && row.data <= params.dataFinal);
-}
-
 export async function fetchExportacoesFromSource(params: {
   periodoInicial: string;
   periodoFinal: string;
@@ -231,16 +217,6 @@ export async function upsertBaseRegional(records: BaseRegionalRecord[]): Promise
   return payload.length;
 }
 
-export async function upsertEscalas(records: EscalaAbateRecord[]): Promise<number> {
-  if (!records.length) return 0;
-  const client = getRestClient();
-
-  await client.post("/boigordo_escala_abate_historico?on_conflict=planta_id,data", records, {
-    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-  });
-  return records.length;
-}
-
 export async function upsertExportacoes(records: ExportacaoBovinaRecord[]): Promise<number> {
   if (!records.length) return 0;
   const client = getRestClient();
@@ -265,7 +241,6 @@ export async function healthcheckAnalyticsTables(): Promise<void> {
   const tables = [
     "boigordo_abate_femeas_historico",
     "boigordo_base_regional_historico",
-    "boigordo_escala_abate_historico",
     "boigordo_exportacao_bovina_historico",
   ];
 
@@ -287,14 +262,6 @@ export async function fetchBaseRegionalRows(): Promise<AnalyticsBaseViewRow[]> {
   const client = getRestClient();
   const { data } = await client.get<AnalyticsBaseViewRow[]>(
     "/boigordo_view_base_regional_stats?select=data,praca_local,base_percentual,situacao_base&order=data.desc&limit=5000"
-  );
-  return data || [];
-}
-
-export async function fetchEscalaRegionalRows(): Promise<AnalyticsEscalaViewRow[]> {
-  const client = getRestClient();
-  const { data } = await client.get<AnalyticsEscalaViewRow[]>(
-    "/boigordo_view_escala_abate_regional?select=regiao,data,dias_escala_media,classificacao&order=data.desc&limit=5000"
   );
   return data || [];
 }

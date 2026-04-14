@@ -31,7 +31,7 @@ import { formatPhoneForDisplay } from "@/lib/phone-format"
 import { supabase, type GrupoNotificacao } from "@/lib/supabase"
 import { toast } from "sonner"
 
-const ALERT_TYPE_OPTIONS = ["CICLO_PECUARIO", "BASE_REGIONAL", "ESCALA_ABATE", "EXPORTACAO"]
+const ALERT_TYPE_OPTIONS = ["CICLO_PECUARIO", "BASE_REGIONAL", "EXPORTACAO"]
 const SEVERIDADE_OPTIONS = ["ALTA", "MEDIA", "BAIXA"]
 
 type GroupFormState = {

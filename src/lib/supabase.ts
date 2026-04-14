@@ -61,15 +61,6 @@ export interface BaseRegionalStats {
   situacao_base: 'BASE_FORTE' | 'BASE_NORMAL' | 'BASE_FRACA'
 }
 
-export interface EscalaAbateRegional {
-  regiao: string
-  data: string
-  dias_escala_media: number
-  limite_curta: number
-  limite_longa: number
-  classificacao: 'CURTA' | 'NORMAL' | 'LONGA'
-}
-
 export interface ExportacaoResumoMensal {
   periodo: string
   volume_total_t: number

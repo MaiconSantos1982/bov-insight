@@ -10,6 +10,7 @@ const items = [
   { href: "/admin/webhooks", label: "Webhooks" },
   { href: "/admin/grupos-mensagens", label: "Grupos e Mensagens" },
   { href: "/admin/logs-execucao", label: "Logs de Execucao" },
+  { href: "/admin/cepea-widget", label: "CEPEA Widget" },
 ]
 
 export function AdminSubnav() {

@@ -5,7 +5,6 @@ import { logger } from "../logger";
 import {
   AbateFemeasRecord,
   BaseRegionalInput,
-  EscalaAbateRecord,
   ExportacaoBovinaRecord,
 } from "./types";
 import {
@@ -15,7 +14,6 @@ import {
 } from "./connectors/sidra";
 import { fetchExportacoesFromSecex } from "./connectors/secex";
 import { fetchBaseRegionalDerived } from "./connectors/base-regional-derived";
-import { fetchEscalaOperacional } from "./connectors/escala-operacional";
 
 const app = express();
 const PORT = Number(process.env.ANALYTICS_SOURCE_PORT || 4010);
@@ -91,28 +89,6 @@ app.get("/analytics/base-regional", (_req, res) => {
   }
 
   const rows = readJsonArray<BaseRegionalInput>("base-regional.json");
-  res.json(rows);
-});
-
-app.get("/analytics/escala-abate", (_req, res) => {
-  const provider = String(process.env.ANALYTICS_ESCALA_PROVIDER || "operacional").toLowerCase();
-  if (provider === "operacional") {
-    void (async () => {
-      try {
-        const dataInicial = typeof _req.query.from === "string" ? _req.query.from : undefined;
-        const dataFinal = typeof _req.query.to === "string" ? _req.query.to : undefined;
-        const rows = await fetchEscalaOperacional({ dataInicial, dataFinal });
-        res.json(rows);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.error(`[analytics-source] falha no conector OPERACIONAL (escala): ${msg}`);
-        res.status(502).json({ erro: msg });
-      }
-    })();
-    return;
-  }
-
-  const rows = readJsonArray<EscalaAbateRecord>("escala-abate.json");
   res.json(rows);
 });
 

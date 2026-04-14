@@ -44,13 +44,11 @@ export default function DashboardPage() {
         globalDateRange,
         alertas,
         cicloPecuario,
-        escalaAbateRegional,
         exportacaoResumo,
         baseRegionalStats,
         alertasAnaliticos,
     } = useData()
     const showAnalyticsRiskCards = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_RISK_CARDS !== "false"
-    const isSuperAdmin = process.env.NEXT_PUBLIC_IS_SUPER_ADMIN === "true"
 
     const chartData = useMemo(() => {
         return getRelacaoTroca(globalDateRange, 'day')
@@ -64,11 +62,6 @@ export default function DashboardPage() {
             .filter((row) => row.regiao === "BRASIL")
             .sort((a, b) => b.periodo.localeCompare(a.periodo))[0],
         [cicloPecuario]
-    )
-
-    const latestEscalaBrasil = useMemo(
-        () => [...escalaAbateRegional].sort((a, b) => b.data.localeCompare(a.data))[0],
-        [escalaAbateRegional]
     )
 
     const latestExportacao = exportacaoResumo[exportacaoResumo.length - 1]
@@ -157,16 +150,15 @@ export default function DashboardPage() {
                             <CardContent className="pt-5 pb-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">{isSuperAdmin ? "Escala / Base" : "Base Regional"}</p>
-                                        <p className="text-2xl font-bold mt-1">{isSuperAdmin ? (latestEscalaBrasil?.classificacao || "—") : (latestBase?.situacao_base?.replace("BASE_", "Base ") || "—")}</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Base Regional</p>
+                                        <p className="text-2xl font-bold mt-1">{latestBase?.situacao_base?.replace("BASE_", "Base ") || "—"}</p>
                                         <p className="text-xs text-muted-foreground mt-1">
                                             {latestBase ? `${latestBase.praca_local}: ${latestBase.situacao_base.replace("BASE_", "Base ")}` : "Sem base regional"}
                                         </p>
                                     </div>
                                     <Gauge className="size-5 text-primary" />
                                 </div>
-                                <div className="mt-3 flex items-center gap-3">
-                                    {isSuperAdmin && <Link href="/escala-abate" className="text-xs text-primary hover:underline">Escala (Em criação)</Link>}
+                                <div className="mt-3">
                                     <Link href="/base-regional" className="text-xs text-primary hover:underline">Base</Link>
                                 </div>
                             </CardContent>

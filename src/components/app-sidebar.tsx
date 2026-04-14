@@ -14,7 +14,6 @@ import {
     History,
     GitBranch,
     MapPinned,
-    Factory,
     Ship,
     BellRing,
     Shield,
@@ -22,6 +21,7 @@ import {
     MessageSquare,
     FileText,
     Webhook,
+    Table2,
 } from 'lucide-react'
 import {
     Sidebar,
@@ -120,24 +120,17 @@ const adminMenuItems = [
         href: '/admin/logs-execucao',
         icon: FileText,
     },
+    {
+        label: 'CEPEA Widget',
+        href: '/admin/cepea-widget',
+        icon: Table2,
+    },
 ]
 
 export function AppSidebar() {
     const pathname = usePathname()
     const { setOpenMobile } = useSidebar()
-    const isSuperAdmin = process.env.NEXT_PUBLIC_IS_SUPER_ADMIN === "true"
-
-    const resolvedMenuItems = [
-        ...menuItems,
-        ...(isSuperAdmin
-            ? [{
-                label: 'Escala de Abate',
-                href: '/escala-abate',
-                icon: Factory,
-                badge: 'Em criação',
-            }]
-            : []),
-    ]
+    const resolvedMenuItems = menuItems
 
     return (
         <Sidebar collapsible="icon" variant="sidebar">

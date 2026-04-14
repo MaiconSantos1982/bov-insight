@@ -3,23 +3,20 @@ import {
   runAnalyticsAlertEngine,
   runWorkerBaseRegional,
   runWorkerCicloPecuario,
-  runWorkerEscalaAbate,
   runWorkerExportacao,
   runAnalyticsIngestionPipeline,
 } from "./index";
 import {
   fetchAbateFemeasFromSource,
   fetchBaseRegionalInputsFromSource,
-  fetchEscalasFromSource,
   fetchExportacoesFromSource,
   healthcheckAnalyticsTables,
   upsertAbateFemeas,
   upsertBaseRegional,
-  upsertEscalas,
   upsertExportacoes,
 } from "./supabase-repository";
 
-type WorkerName = "ciclo" | "base" | "escala" | "exportacao" | "healthcheck" | "alertas" | "ingest";
+type WorkerName = "ciclo" | "base" | "exportacao" | "healthcheck" | "alertas" | "ingest";
 
 function argValue(flag: string): string | undefined {
   const args = process.argv.slice(2);
@@ -31,7 +28,7 @@ function argValue(flag: string): string | undefined {
 function argWorker(): WorkerName {
   const worker = process.argv.slice(2)[0] as WorkerName | undefined;
   if (!worker) {
-    throw new Error("Informe o worker: ciclo | base | escala | exportacao | healthcheck");
+    throw new Error("Informe o worker: ciclo | base | exportacao | healthcheck");
   }
   return worker;
 }
@@ -74,17 +71,6 @@ async function main(): Promise<void> {
       { dataInicial: from, dataFinal: to }
     );
     logger.success(`[analytics:base] concluído`, result);
-    return;
-  }
-
-  if (worker === "escala") {
-    const from = argValue("--from") || monthsAgoIso(3);
-    const to = argValue("--to") || todayIso();
-    const result = await runWorkerEscalaAbate(
-      { fetchEscalas: fetchEscalasFromSource, upsertEscalas },
-      { dataInicial: from, dataFinal: to }
-    );
-    logger.success(`[analytics:escala] concluído`, result);
     return;
   }
 

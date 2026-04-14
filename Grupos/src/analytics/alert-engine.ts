@@ -6,7 +6,6 @@ import {
   AlertaAnaliticoPendenteEnvio,
   AnalyticsBaseViewRow,
   AnalyticsCicloViewRow,
-  AnalyticsEscalaViewRow,
   AnalyticsExportacaoViewRow,
   GrupoNotificacaoConfig,
 } from "./types";
@@ -16,7 +15,6 @@ import {
   fetchAlertasAnaliticosPendentesEnvio,
   fetchBaseRegionalRows,
   fetchCicloClassificacaoRows,
-  fetchEscalaRegionalRows,
   fetchExportacaoResumoRows,
   fetchGruposNotificacaoAtivos,
   insertExecucaoLog,
@@ -61,22 +59,6 @@ function buildBaseAlerts(rows: AnalyticsBaseViewRow[]): AlertaAnaliticoRecord[] 
       severidade: row.situacao_base === "BASE_FRACA" ? "MEDIA" : "BAIXA",
       titulo: `Base ${row.situacao_base === "BASE_FRACA" ? "fraca" : "forte"} em ${row.praca_local}`,
       descricao: `Praça ${row.praca_local} com base em ${row.base_percentual.toFixed(2)}% (${row.situacao_base}).`,
-      status: "ABERTO",
-      contexto: row,
-    }));
-}
-
-function buildEscalaAlerts(rows: AnalyticsEscalaViewRow[]): AlertaAnaliticoRecord[] {
-  const latest = latestByKey(rows, (r) => r.regiao);
-  return latest
-    .filter((row) => row.classificacao === "CURTA" || row.classificacao === "LONGA")
-    .map((row) => ({
-      alert_key: `ESCALA_${row.classificacao}_${row.regiao}`,
-      data_ref: row.data,
-      tipo: "ESCALA_ABATE",
-      severidade: row.classificacao === "CURTA" ? "ALTA" : "MEDIA",
-      titulo: `Escala de abate ${row.classificacao.toLowerCase()} (${row.regiao})`,
-      descricao: `Região ${row.regiao} com ${row.dias_escala_media.toFixed(2)} dias de escala (${row.classificacao}).`,
       status: "ABERTO",
       contexto: row,
     }));
@@ -179,7 +161,6 @@ async function dispatchPendingAnalyticsAlerts(
 export async function runAnalyticsAlertEngine(): Promise<{
   ciclo: number;
   base: number;
-  escala: number;
   exportacao: number;
   fechados: number;
   enviados: number;
@@ -198,18 +179,16 @@ export async function runAnalyticsAlertEngine(): Promise<{
   });
 
   try {
-    const [cicloRows, baseRows, escalaRows, exportacaoRows] = await Promise.all([
+    const [cicloRows, baseRows, exportacaoRows] = await Promise.all([
       fetchCicloClassificacaoRows(),
       fetchBaseRegionalRows(),
-      fetchEscalaRegionalRows(),
       fetchExportacaoResumoRows(),
     ]);
 
     const cicloAlerts = buildCicloAlerts(cicloRows);
     const baseAlerts = buildBaseAlerts(baseRows);
-    const escalaAlerts = buildEscalaAlerts(escalaRows);
     const exportacaoAlerts = buildExportacaoAlerts(exportacaoRows);
-    const all = [...cicloAlerts, ...baseAlerts, ...escalaAlerts, ...exportacaoAlerts];
+    const all = [...cicloAlerts, ...baseAlerts, ...exportacaoAlerts];
     const openRows = await fetchAlertasAnaliticosAbertos();
 
     const upserted = all.length ? await upsertAlertasAnaliticos(all) : 0;
@@ -227,7 +206,6 @@ export async function runAnalyticsAlertEngine(): Promise<{
     const result = {
       ciclo: cicloAlerts.length,
       base: baseAlerts.length,
-      escala: escalaAlerts.length,
       exportacao: exportacaoAlerts.length,
       fechados: closed,
       enviados: dispatch.enviados,

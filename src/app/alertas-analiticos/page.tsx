@@ -23,7 +23,6 @@ function formatSeveridade(severity: 'BAIXA' | 'MEDIA' | 'ALTA'): string {
 function formatTipo(tipo: string): string {
     if (tipo === "CICLO_PECUARIO") return "Ciclo Pecuário"
     if (tipo === "BASE_REGIONAL") return "Base Regional"
-    if (tipo === "ESCALA_ABATE") return "Escala de Abate"
     if (tipo === "EXPORTACAO") return "Exportação"
     return tipo
 }
@@ -43,7 +42,7 @@ export default function AlertasAnaliticosPage() {
         <>
             <PageHeader
                 title="Alertas Analíticos"
-                description="Sinais automáticos gerados a partir dos módulos de ciclo, base, escala e exportações"
+                description="Sinais automáticos gerados a partir dos módulos de ciclo, base e exportações"
                 showDatePicker={false}
             >
                 <InfoHint text="Leitura rápida: alerta analitico e um aviso automatico quando um indicador sai da faixa esperada (ex.: mudanca de fase no ciclo ou dependencia China elevada). Severidade indica urgencia: Alta, Media ou Baixa." />

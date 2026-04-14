@@ -11,7 +11,11 @@ import {
 import { enviarWhatsApp } from "./messaging";
 import fs from "fs";
 import { spawnSync } from "child_process";
-import { persistirHistoricoPrecos } from "./persistence/historico-precos";
+import {
+    buscarHistoricosPorData,
+    buscarUltimosHistoricosPorProduto,
+    persistirHistoricoPrecos,
+} from "./persistence/historico-precos";
 
 interface CacheCepea {
     cepea_fisico_brl: number | null;
@@ -20,6 +24,54 @@ interface CacheCepea {
     cepea_soja_brl: number | null;
     cepea_fisico_usd: number | null;
     cepea_data_referencia: string | null;
+}
+
+interface FallbackHistoricoDatagro {
+    dataReferencia: string;
+    valorBrl: number;
+    valorUsd: number;
+}
+
+function formatarDataIso(data: Date): string {
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, "0");
+    const dia = String(data.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+}
+
+function agoraSaoPaulo(): Date {
+    return new Date(
+        new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
+    );
+}
+
+function ehFimDeSemana(data: Date): boolean {
+    const diaSemana = data.getDay();
+    return diaSemana === 0 || diaSemana === 6;
+}
+
+function dataFechamentoEsperada(): string {
+    const data = agoraSaoPaulo();
+    data.setDate(data.getDate() - 1);
+    while (ehFimDeSemana(data)) {
+        data.setDate(data.getDate() - 1);
+    }
+    return formatarDataIso(data);
+}
+
+function normalizarDataIsoOuNulo(data: string | null | undefined): string | null {
+    if (!data) return null;
+    const texto = data.trim();
+    const matchBr = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (matchBr) {
+        const [, dd, mm, yyyy] = matchBr;
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    const matchIso = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (matchIso) {
+        return texto;
+    }
+    return null;
 }
 
 function garantirChromiumPlaywright(): void {
@@ -96,6 +148,49 @@ function recuperarUltimoCepeaValidoDosLogs(): CacheCepea | null {
         );
         return null;
     }
+}
+
+function obterFallbackHistoricoDatagro(dados: {
+    boiBrasil: DadosCotacao["datagro_boi_brasil"];
+    boiMundo: DadosCotacao["datagro_boi_mundo"];
+}): FallbackHistoricoDatagro | null {
+    const itensBrasilValidos = dados.boiBrasil.filter((item) => item.preco != null);
+    if (!itensBrasilValidos.length) {
+        return null;
+    }
+
+    const itemSp =
+        itensBrasilValidos.find((item) => item.codigo === "D_PEPR_SP_BR") ??
+        itensBrasilValidos.find((item) => item.nome.toLowerCase().includes("sp"));
+    const valorBrl =
+        itemSp?.preco ??
+        Number(
+            (
+                itensBrasilValidos.reduce((acc, item) => acc + (item.preco ?? 0), 0) /
+                itensBrasilValidos.length
+            ).toFixed(2)
+        );
+    const dataRefBrasil = itemSp?.data ?? itensBrasilValidos.find((item) => item.data)?.data;
+
+    const itemMundoBr =
+        dados.boiMundo.find((item) => item.codigo === "PEPR_BR" && item.preco != null) ??
+        dados.boiMundo.find((item) => item.nome.toLowerCase().includes("brasil") && item.preco != null) ??
+        dados.boiMundo.find((item) => item.preco != null);
+
+    if (valorBrl == null || itemMundoBr?.preco == null) {
+        return null;
+    }
+
+    const dataReferencia = dataRefBrasil ?? itemMundoBr.data;
+    if (!dataReferencia) {
+        return null;
+    }
+
+    return {
+        dataReferencia,
+        valorBrl,
+        valorUsd: itemMundoBr.preco,
+    };
 }
 
 /**
@@ -181,92 +276,160 @@ export async function executarWorker(
             return dados;
         }
 
-        // ── 1. Scrapers CEPEA (sem browser) ─────────────────
-        logger.info("─── Etapa 1/2: CEPEA ───");
-        const resultadoCepea = await scrapeCepea();
-        const resultadoBezerro = await scrapeCepeaIndicador(
-            config.urls.cepeaBezerro,
-            "Bezerro"
-        );
-        const resultadoMilho = await scrapeCepeaIndicador(
-            config.urls.cepeaMilho,
-            "Milho"
-        );
-        const resultadoSoja = await scrapeCepeaIndicador(
-            config.urls.cepeaSoja,
-            "Soja"
-        );
+        const dataEsperadaHistorico = dataFechamentoEsperada();
 
-        const cepeaTodosNulos =
-            resultadoCepea.dados?.valorBrl == null &&
-            resultadoBezerro.dados?.valorBrl == null &&
-            resultadoMilho.dados?.valorBrl == null &&
-            resultadoSoja.dados?.valorBrl == null;
-
-        let cepeaFisicoBrl = resultadoCepea.dados?.valorBrl ?? null;
-        let cepeaBezerroBrl = resultadoBezerro.dados?.valorBrl ?? null;
-        let cepeaMilhoBrl = resultadoMilho.dados?.valorBrl ?? null;
-        let cepeaSojaBrl = resultadoSoja.dados?.valorBrl ?? null;
-        let cepeaFisicoUsd = resultadoCepea.dados?.valorUsd ?? null;
-        let cepeaDataReferencia = resultadoCepea.dados?.data ?? null;
-
-        if (cepeaTodosNulos) {
-            const cache = recuperarUltimoCepeaValidoDosLogs();
-            if (cache) {
-                cepeaFisicoBrl = cache.cepea_fisico_brl;
-                cepeaBezerroBrl = cache.cepea_bezerro_brl;
-                cepeaMilhoBrl = cache.cepea_milho_brl;
-                cepeaSojaBrl = cache.cepea_soja_brl;
-                cepeaFisicoUsd = cache.cepea_fisico_usd;
-                cepeaDataReferencia = cache.cepea_data_referencia;
-                logger.warn(
-                    `⚠️ CEPEA indisponível agora (403). Usando último fechamento disponível (${cepeaDataReferencia ?? "sem data"}).`
-                );
-            }
+        // ── 1. Fonte primária: Supabase (histórico próprio) ──────────
+        let historicoDiaEsperado = {} as Awaited<
+            ReturnType<typeof buscarHistoricosPorData>
+        >;
+        try {
+            historicoDiaEsperado = await buscarHistoricosPorData(dataEsperadaHistorico, [
+                "boi_gordo",
+                "bezerro",
+                "milho",
+                "soja",
+            ]);
+        } catch (error) {
+            logger.warn(
+                "⚠️ Falha ao consultar histórico do dia esperado no Supabase:",
+                error instanceof Error ? error.message : String(error)
+            );
         }
 
-        // ── Persistência no histórico Supabase ─────────────
-        try {
-            const dataReferencia =
-                resultadoCepea.dados?.data ??
-                resultadoBezerro.dados?.data ??
-                resultadoMilho.dados?.data ??
-                resultadoSoja.dados?.data;
-            if (dataReferencia) {
-                await persistirHistoricoPrecos([
-                    {
-                        produto: "boi_gordo",
-                        dataReferencia,
-                        valorBrl: resultadoCepea.dados?.valorBrl ?? null,
-                        valorUsd: resultadoCepea.dados?.valorUsd ?? null,
-                    },
-                    {
-                        produto: "bezerro",
-                        dataReferencia: resultadoBezerro.dados?.data ?? dataReferencia,
-                        valorBrl: resultadoBezerro.dados?.valorBrl ?? null,
-                        valorUsd: resultadoBezerro.dados?.valorUsd ?? null,
-                    },
-                    {
-                        produto: "milho",
-                        dataReferencia: resultadoMilho.dados?.data ?? dataReferencia,
-                        valorBrl: resultadoMilho.dados?.valorBrl ?? null,
-                        valorUsd: resultadoMilho.dados?.valorUsd ?? null,
-                    },
-                    {
-                        produto: "soja",
-                        dataReferencia: resultadoSoja.dados?.data ?? dataReferencia,
-                        valorBrl: resultadoSoja.dados?.valorBrl ?? null,
-                        valorUsd: resultadoSoja.dados?.valorUsd ?? null,
-                    },
+        let cepeaFisicoBrl = historicoDiaEsperado.boi_gordo?.valorBrl ?? null;
+        let cepeaBezerroBrl = historicoDiaEsperado.bezerro?.valorBrl ?? null;
+        let cepeaMilhoBrl = historicoDiaEsperado.milho?.valorBrl ?? null;
+        let cepeaSojaBrl = historicoDiaEsperado.soja?.valorBrl ?? null;
+        let cepeaFisicoUsd = historicoDiaEsperado.boi_gordo?.valorUsd ?? null;
+        let cepeaDataReferencia =
+            historicoDiaEsperado.boi_gordo?.data ??
+            historicoDiaEsperado.bezerro?.data ??
+            historicoDiaEsperado.milho?.data ??
+            historicoDiaEsperado.soja?.data ??
+            null;
+
+        const faltaBoi = cepeaFisicoBrl == null || cepeaFisicoUsd == null;
+        const faltaBezerro = cepeaBezerroBrl == null;
+        const faltaMilho = cepeaMilhoBrl == null;
+        const faltaSoja = cepeaSojaBrl == null;
+        const precisaScrapeCepea = faltaBoi || faltaBezerro || faltaMilho || faltaSoja;
+
+        // ── 2. Scrapers CEPEA (apenas para faltantes) ────────────────
+        let resultadoCepea = {
+            sucesso: true,
+            dados: null,
+            erro: "CEPEA suprido via Supabase",
+        } as Awaited<ReturnType<typeof scrapeCepea>>;
+        let resultadoBezerro = {
+            sucesso: true,
+            dados: null,
+            erro: "Bezerro suprido via Supabase",
+        } as Awaited<ReturnType<typeof scrapeCepeaIndicador>>;
+        let resultadoMilho = {
+            sucesso: true,
+            dados: null,
+            erro: "Milho suprido via Supabase",
+        } as Awaited<ReturnType<typeof scrapeCepeaIndicador>>;
+        let resultadoSoja = {
+            sucesso: true,
+            dados: null,
+            erro: "Soja suprido via Supabase",
+        } as Awaited<ReturnType<typeof scrapeCepeaIndicador>>;
+
+        if (precisaScrapeCepea) {
+            logger.info("─── Etapa 1/2: CEPEA (complemento de faltantes) ───");
+            if (faltaBoi) {
+                resultadoCepea = await scrapeCepea();
+                cepeaFisicoBrl = resultadoCepea.dados?.valorBrl ?? cepeaFisicoBrl;
+                cepeaFisicoUsd = resultadoCepea.dados?.valorUsd ?? cepeaFisicoUsd;
+                cepeaDataReferencia = resultadoCepea.dados?.data ?? cepeaDataReferencia;
+            }
+            if (faltaBezerro) {
+                resultadoBezerro = await scrapeCepeaIndicador(
+                    config.urls.cepeaBezerro,
+                    "Bezerro"
+                );
+                cepeaBezerroBrl = resultadoBezerro.dados?.valorBrl ?? cepeaBezerroBrl;
+                cepeaDataReferencia = resultadoBezerro.dados?.data ?? cepeaDataReferencia;
+            }
+            if (faltaMilho) {
+                resultadoMilho = await scrapeCepeaIndicador(
+                    config.urls.cepeaMilho,
+                    "Milho"
+                );
+                cepeaMilhoBrl = resultadoMilho.dados?.valorBrl ?? cepeaMilhoBrl;
+                cepeaDataReferencia = resultadoMilho.dados?.data ?? cepeaDataReferencia;
+            }
+            if (faltaSoja) {
+                resultadoSoja = await scrapeCepeaIndicador(
+                    config.urls.cepeaSoja,
+                    "Soja"
+                );
+                cepeaSojaBrl = resultadoSoja.dados?.valorBrl ?? cepeaSojaBrl;
+                cepeaDataReferencia = resultadoSoja.dados?.data ?? cepeaDataReferencia;
+            }
+        } else {
+            logger.info(
+                `✅ CEPEA carregado do Supabase para ${dataEsperadaHistorico}. Scrape externo não necessário.`
+            );
+        }
+
+        const cepeaTodosNulos =
+            cepeaFisicoBrl == null &&
+            cepeaBezerroBrl == null &&
+            cepeaMilhoBrl == null &&
+            cepeaSojaBrl == null;
+
+        if (cepeaTodosNulos) {
+            try {
+                const ultimos = await buscarUltimosHistoricosPorProduto([
+                    "boi_gordo",
+                    "bezerro",
+                    "milho",
+                    "soja",
                 ]);
-            } else {
+                if (ultimos.boi_gordo || ultimos.bezerro || ultimos.milho || ultimos.soja) {
+                    cepeaFisicoBrl = ultimos.boi_gordo?.valorBrl ?? null;
+                    cepeaBezerroBrl = ultimos.bezerro?.valorBrl ?? null;
+                    cepeaMilhoBrl = ultimos.milho?.valorBrl ?? null;
+                    cepeaSojaBrl = ultimos.soja?.valorBrl ?? null;
+                    cepeaFisicoUsd = ultimos.boi_gordo?.valorUsd ?? null;
+                    cepeaDataReferencia =
+                        ultimos.boi_gordo?.data ??
+                        ultimos.bezerro?.data ??
+                        ultimos.milho?.data ??
+                        ultimos.soja?.data ??
+                        null;
+                    logger.warn(
+                        `⚠️ CEPEA indisponível. Usando último fechamento do Supabase (${cepeaDataReferencia ?? "sem data"}).`
+                    );
+                }
+            } catch (error) {
                 logger.warn(
-                    "⚠️ Histórico de preços não atualizado: data de referência CEPEA indisponível."
+                    "⚠️ Falha ao obter fallback CEPEA no Supabase:",
+                    error instanceof Error ? error.message : String(error)
                 );
             }
-        } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error);
-            logger.error("❌ Falha ao persistir histórico de preços no Supabase:", msg);
+
+            if (
+                cepeaFisicoBrl == null &&
+                cepeaBezerroBrl == null &&
+                cepeaMilhoBrl == null &&
+                cepeaSojaBrl == null
+            ) {
+                const cache = recuperarUltimoCepeaValidoDosLogs();
+                if (cache) {
+                    cepeaFisicoBrl = cache.cepea_fisico_brl;
+                    cepeaBezerroBrl = cache.cepea_bezerro_brl;
+                    cepeaMilhoBrl = cache.cepea_milho_brl;
+                    cepeaSojaBrl = cache.cepea_soja_brl;
+                    cepeaFisicoUsd = cache.cepea_fisico_usd;
+                    cepeaDataReferencia = cache.cepea_data_referencia;
+                    logger.warn(
+                        `⚠️ CEPEA indisponível agora (403). Usando último fechamento disponível (${cepeaDataReferencia ?? "sem data"}).`
+                    );
+                }
+            }
         }
 
         // ── 2. Scraper TradingView (Boi Futuro) ──────────────
@@ -340,6 +503,133 @@ export async function executarWorker(
         if (fonte === "todos") {
             logger.info("─── Etapa extra: DATAGRO Livestock ───");
             resultadoDatagro = await scrapeDatagroLivestock();
+            const cepeaDataIso = normalizarDataIsoOuNulo(cepeaDataReferencia);
+            const cepeaAtrasado = !cepeaDataIso || cepeaDataIso < dataEsperadaHistorico;
+            if (cepeaAtrasado && resultadoDatagro.sucesso && resultadoDatagro.dados) {
+                const fallbackHistorico = obterFallbackHistoricoDatagro({
+                    boiBrasil: resultadoDatagro.dados.boiBrasil,
+                    boiMundo: resultadoDatagro.dados.boiMundo,
+                });
+
+                if (fallbackHistorico) {
+                    try {
+                        await persistirHistoricoPrecos([
+                            {
+                                produto: "boi_gordo",
+                                dataReferencia: fallbackHistorico.dataReferencia,
+                                valorBrl: fallbackHistorico.valorBrl,
+                                valorUsd: fallbackHistorico.valorUsd,
+                            },
+                        ]);
+                        cepeaDataReferencia = fallbackHistorico.dataReferencia;
+                        cepeaFisicoBrl = fallbackHistorico.valorBrl;
+                        cepeaFisicoUsd = fallbackHistorico.valorUsd;
+                        logger.warn(
+                            `⚠️ Histórico CEPEA atualizado em contingência (${fallbackHistorico.dataReferencia}).`
+                        );
+                    } catch (error) {
+                        logger.error(
+                            "❌ Falha ao persistir histórico CEPEA em contingência:",
+                            error instanceof Error ? error.message : String(error)
+                        );
+                    }
+                }
+            }
+        }
+
+        // ── Persistência no histórico Supabase ─────────────
+        try {
+            const dataReferenciaCapturada = normalizarDataIsoOuNulo(
+                cepeaDataReferencia ??
+                    resultadoBezerro.dados?.data ??
+                    resultadoMilho.dados?.data ??
+                    resultadoSoja.dados?.data
+            );
+            const dataPersistencia =
+                dataReferenciaCapturada && dataReferenciaCapturada >= dataEsperadaHistorico
+                    ? dataReferenciaCapturada
+                    : dataEsperadaHistorico;
+
+            const valoresAtuais = {
+                boi_gordo: {
+                    valorBrl: cepeaFisicoBrl,
+                    valorUsd: cepeaFisicoUsd,
+                },
+                bezerro: {
+                    valorBrl: cepeaBezerroBrl,
+                    valorUsd: resultadoBezerro.dados?.valorUsd ?? null,
+                },
+                milho: {
+                    valorBrl: cepeaMilhoBrl,
+                    valorUsd: resultadoMilho.dados?.valorUsd ?? null,
+                },
+                soja: {
+                    valorBrl: cepeaSojaBrl,
+                    valorUsd: resultadoSoja.dados?.valorUsd ?? null,
+                },
+            };
+
+            const produtos = Object.keys(valoresAtuais) as Array<
+                keyof typeof valoresAtuais
+            >;
+            const precisaFallback = produtos.some(
+                (produto) =>
+                    valoresAtuais[produto].valorBrl == null ||
+                    valoresAtuais[produto].valorUsd == null
+            );
+
+            if (precisaFallback) {
+                const ultimos = await buscarUltimosHistoricosPorProduto([
+                    "boi_gordo",
+                    "bezerro",
+                    "milho",
+                    "soja",
+                ]);
+                for (const produto of produtos) {
+                    if (valoresAtuais[produto].valorBrl == null) {
+                        valoresAtuais[produto].valorBrl = ultimos[produto]?.valorBrl ?? null;
+                    }
+                    if (valoresAtuais[produto].valorUsd == null) {
+                        valoresAtuais[produto].valorUsd = ultimos[produto]?.valorUsd ?? null;
+                    }
+                }
+            }
+
+            const persistencia = await persistirHistoricoPrecos([
+                {
+                    produto: "boi_gordo",
+                    dataReferencia: dataPersistencia,
+                    valorBrl: valoresAtuais.boi_gordo.valorBrl,
+                    valorUsd: valoresAtuais.boi_gordo.valorUsd,
+                },
+                {
+                    produto: "bezerro",
+                    dataReferencia: dataPersistencia,
+                    valorBrl: valoresAtuais.bezerro.valorBrl,
+                    valorUsd: valoresAtuais.bezerro.valorUsd,
+                },
+                {
+                    produto: "milho",
+                    dataReferencia: dataPersistencia,
+                    valorBrl: valoresAtuais.milho.valorBrl,
+                    valorUsd: valoresAtuais.milho.valorUsd,
+                },
+                {
+                    produto: "soja",
+                    dataReferencia: dataPersistencia,
+                    valorBrl: valoresAtuais.soja.valorBrl,
+                    valorUsd: valoresAtuais.soja.valorUsd,
+                },
+            ]);
+
+            if (persistencia.ignorados > 0) {
+                logger.warn(
+                    `⚠️ Histórico preenchido parcialmente para ${dataPersistencia}.`
+                );
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            logger.error("❌ Falha ao persistir histórico de preços no Supabase:", msg);
         }
 
         // ── 4. Consolidação ──────────────────────────────────

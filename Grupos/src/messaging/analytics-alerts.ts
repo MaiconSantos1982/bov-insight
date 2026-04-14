@@ -24,7 +24,6 @@ function prettyTipo(tipo: string): string {
   const map: Record<string, string> = {
     CICLO_PECUARIO: "Ciclo Pecuario",
     BASE_REGIONAL: "Base Regional",
-    ESCALA_ABATE: "Escala de Abate",
     EXPORTACAO: "Exportacao",
   };
   return map[tipo] || tipo;

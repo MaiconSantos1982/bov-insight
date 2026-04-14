@@ -10,7 +10,6 @@
     "analytics:source": "npx ts-node src/analytics/source-server.ts",
     "analytics:ciclo": "npx ts-node src/analytics/run.ts ciclo",
     "analytics:base": "npx ts-node src/analytics/run.ts base",
-    "analytics:escala": "npx ts-node src/analytics/run.ts escala",
     "analytics:exportacao": "npx ts-node src/analytics/run.ts exportacao",
     "analytics:ingest": "npx ts-node src/analytics/run.ts ingest",
     "analytics:alertas": "npx ts-node src/analytics/run.ts alertas",

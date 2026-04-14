@@ -8,7 +8,6 @@ Workers analíticos com upsert direto nas tabelas `boigordo_*` via Supabase REST
 - Endpoints fonte de dados:
   - `ANALYTICS_CICLO_URL`
   - `ANALYTICS_BASE_REGIONAL_URL`
-  - `ANALYTICS_ESCALA_ABATE_URL`
   - `ANALYTICS_EXPORTACAO_URL`
 - Regras/agenda de alertas:
   - `ANALYTICS_ALERT_CHINA_THRESHOLD_PCT` (default `70`)
@@ -24,7 +23,6 @@ As fontes aceitam:
 - `npm run analytics:healthcheck`
 - `npm run analytics:ciclo`
 - `npm run analytics:base`
-- `npm run analytics:escala`
 - `npm run analytics:exportacao`
 - `npm run analytics:alertas`
 
@@ -41,7 +39,6 @@ npm run analytics:healthcheck
 ```bash
 npm run analytics:ciclo
 npm run analytics:base
-npm run analytics:escala
 npm run analytics:exportacao
 npm run analytics:alertas
 ```
@@ -60,7 +57,6 @@ npm run analytics:alertas
 ```bash
 npx ts-node src/analytics/run.ts ciclo --from 2024-01-01 --to 2026-04-07
 npx ts-node src/analytics/run.ts base --from 2026-01-01 --to 2026-04-07
-npx ts-node src/analytics/run.ts escala --from 2026-03-01 --to 2026-04-07
 npx ts-node src/analytics/run.ts exportacao --from 2024-01-01 --to 2026-04-07
 ```
 
@@ -88,20 +84,6 @@ ANALYTICS_CICLO_URL=file://data/analytics/ciclo.json npx ts-node src/analytics/r
     "preco_fisico_local": 302.15,
     "preco_referencia_sp": 308.40,
     "fonte": "CEPEA"
-  }
-]
-```
-
-### Escala (`ANALYTICS_ESCALA_ABATE_URL`)
-```json
-[
-  {
-    "planta_id": "PLANTA_001",
-    "regiao": "GO",
-    "data": "2026-04-07",
-    "dias_escala": 8,
-    "capacidade_abate_dia": 1200,
-    "fonte": "SIF"
   }
 ]
 ```
