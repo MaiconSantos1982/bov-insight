@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useData } from "@/lib/data-provider"
-import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
 const PAPEL_OPTIONS = [
@@ -167,9 +166,10 @@ export default function ConfiguracoesPage() {
       const emailFinal = canEditPersonalData ? (email || null) : (usuarioConfiguracao?.email || null)
       const telefoneFinal = telefoneWhatsapp
 
-      const { error: perfilError } = await supabase
-        .from("boigordo_usuarios_perfil")
-        .upsert({
+      const response = await fetch("/api/configuracoes/salvar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           usuario_id: resolvedUsuarioId,
           nome: nomeFinal,
           email: emailFinal,
@@ -179,31 +179,14 @@ export default function ConfiguracoesPage() {
           cabecas_gado: optionToCabecas(cabecasFaixa),
           experiencia_anos: experienciaAnos ? Number(experienciaAnos) : null,
           status: usuarioConfiguracao?.perfil_status || "ATIVO",
-        }, { onConflict: "usuario_id" })
-      if (perfilError) throw perfilError
+          destino_id: destinoAtivo?.id || null,
+          telefone_destino: telefoneDestino || telefoneFinal,
+        }),
+      })
 
-      if (destinoAtivo?.id) {
-        const { error: destinoError } = await supabase
-          .from("boigordo_alertas_pro_destinos")
-          .update({
-            telefone_destino: telefoneDestino || telefoneFinal,
-            ativo: true,
-          })
-          .eq("id", destinoAtivo.id)
-        if (destinoError) throw destinoError
-      } else {
-        const { error: destinoInsertError } = await supabase
-          .from("boigordo_alertas_pro_destinos")
-          .insert({
-            usuario_id: resolvedUsuarioId,
-            telefone_destino: telefoneDestino || telefoneFinal,
-            ativo: true,
-            frequencia: "IMEDIATO",
-            timezone: "America/Sao_Paulo",
-            tipos_alerta: [],
-            severidades: [],
-          })
-        if (destinoInsertError) throw destinoInsertError
+      const payload = await response.json()
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Falha ao salvar configurações.")
       }
 
       toast.success("Configuracoes salvas", { description: "Dados atualizados no Supabase com sucesso." })
