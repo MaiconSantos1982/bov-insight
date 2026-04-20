@@ -22,13 +22,8 @@ function isProdutoKey(value: string): value is ProdutoKey {
   return value in PRODUTOS
 }
 
-function buildInitialRules(data: AlertaProRegra[], userId: string | null): AlertaProRegra[] {
-  if (!userId) return data
-  return data.filter((item) => item.usuario_id === userId)
-}
-
 function AlertasPageContent() {
-  const { alertasProRegras, alertasProDestinos, usuarioConfiguracao, latestPrices } = useData()
+  const { alertasProDestinos, usuarioConfiguracao, latestPrices } = useData()
   const searchParams = useSearchParams()
   const auto = searchParams.get("auto") === "1"
   const produtoParam = searchParams.get("produto")
@@ -56,6 +51,7 @@ function AlertasPageContent() {
   const [newCondicao, setNewCondicao] = useState<"acima_de" | "abaixo_de">(initialCondicao)
   const [newValor, setNewValor] = useState(initialValor)
   const [saving, setSaving] = useState(false)
+  const [loadingRegras, setLoadingRegras] = useState(false)
 
   const destinoAtivo = useMemo(
     () => alertasProDestinos.find((d) => d.ativo && (!userId || d.usuario_id === userId)),
@@ -63,8 +59,30 @@ function AlertasPageContent() {
   )
 
   useEffect(() => {
-    setRegras(buildInitialRules(alertasProRegras, userId))
-  }, [alertasProRegras, userId])
+    async function loadRegras() {
+      if (!userId) {
+        setRegras([])
+        return
+      }
+      setLoadingRegras(true)
+      try {
+        const response = await fetch(`/api/alertas-pro/regras?usuario_id=${encodeURIComponent(userId)}`, {
+          cache: "no-store",
+        })
+        const payload = await response.json()
+        if (!response.ok || !payload?.ok) {
+          toast.error("Falha ao carregar alertas", { description: payload?.error || "Erro desconhecido." })
+          return
+        }
+        setRegras((payload.rows || []) as AlertaProRegra[])
+      } catch {
+        toast.error("Falha ao carregar alertas", { description: "Erro de rede ao buscar alertas." })
+      } finally {
+        setLoadingRegras(false)
+      }
+    }
+    loadRegras()
+  }, [userId])
 
   const activeCount = regras.filter((a) => a.ativo).length
   const triggeredCount = regras.filter((a) => a.ultimo_disparo).length
@@ -223,7 +241,9 @@ function AlertasPageContent() {
           <CardHeader className="pb-3"><CardTitle className="text-base">Seus Alertas</CardTitle><CardDescription>Gerencie seus gatilhos de preço</CardDescription></CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {regras.length === 0 ? (
+              {loadingRegras ? (
+                <div className="text-center py-12 text-muted-foreground"><p className="text-sm">Carregando alertas...</p></div>
+              ) : regras.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground"><BellOff className="size-12 mx-auto mb-3 opacity-30" /><p className="text-sm">Nenhum alerta configurado</p></div>
               ) : regras.map((alerta) => {
                 const produtoInfo = PRODUTOS[alerta.produto as ProdutoKey]

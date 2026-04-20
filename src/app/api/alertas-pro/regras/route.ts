@@ -71,6 +71,30 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true, row: data })
 }
 
+export async function GET(request: Request) {
+  const { client, error } = getAdminClient()
+  if (!client) return NextResponse.json({ ok: false, error }, { status: 500 })
+
+  const { searchParams } = new URL(request.url)
+  const usuarioId = searchParams.get("usuario_id")
+
+  if (!usuarioId) {
+    return NextResponse.json({ ok: false, error: "usuario_id é obrigatório." }, { status: 400 })
+  }
+
+  const { data, error: fetchError } = await client
+    .from("boigordo_alertas_pro_regras")
+    .select("*")
+    .eq("usuario_id", usuarioId)
+    .order("created_at", { ascending: false })
+
+  if (fetchError) {
+    return NextResponse.json({ ok: false, error: fetchError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, rows: data || [] })
+}
+
 export async function PATCH(request: Request) {
   const { client, error } = getAdminClient()
   if (!client) return NextResponse.json({ ok: false, error }, { status: 500 })
@@ -124,4 +148,3 @@ export async function DELETE(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
-
