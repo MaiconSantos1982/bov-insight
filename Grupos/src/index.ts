@@ -4,6 +4,7 @@ import { config } from "./config";
 import { logger } from "./logger";
 import { executarWorker } from "./worker";
 import { runAnalyticsAlertEngine, runAnalyticsIngestionPipeline } from "./analytics";
+import { runAlertasProEngine } from "./alertas-pro-engine";
 import { FonteDados } from "./types";
 
 let executando = false;
@@ -61,6 +62,7 @@ function iniciarServidorControle() {
             historicoPreloadCron: config.historicoPreloadCron,
             analyticsAlertCron: config.analyticsAlertCron,
             analyticsIngestCron: config.analyticsIngestCron,
+            alertasProCron: config.alertasProCron,
         });
     });
 
@@ -251,6 +253,31 @@ async function main(): Promise<void> {
             logger.info(`  ✅ Agendado analytics:ingest: ${config.analyticsIngestCron}`);
         } else {
             logger.info("ℹ️ ANALYTICS_INGEST_CRON não definido. Ingestão analítica sem agendamento.");
+        }
+
+        if (config.alertasProCron) {
+            if (!cron.validate(config.alertasProCron)) {
+                logger.error(`❌ ALERTAS_PRO_CRON inválido: "${config.alertasProCron}"`);
+                process.exit(1);
+            }
+
+            cron.schedule(
+                config.alertasProCron,
+                async () => {
+                    logger.info(`⏰ Cron alertas-pro disparado (${config.alertasProCron})!`);
+                    try {
+                        await runAlertasProEngine();
+                    } catch (error) {
+                        logger.error("Falha no alertas-pro. Continuando agendador...");
+                    }
+                },
+                {
+                    timezone: "America/Sao_Paulo",
+                }
+            );
+            logger.info(`  ✅ Agendado alertas-pro: ${config.alertasProCron}`);
+        } else {
+            logger.info("ℹ️ ALERTAS_PRO_CRON não definido. Alertas Pro sem agendamento.");
         }
 
         logger.info(`💡 Para executar manualmente, use: npx ts-node src/index.ts --force`);

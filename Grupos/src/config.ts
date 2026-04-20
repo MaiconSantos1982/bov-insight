@@ -22,6 +22,7 @@ export const config = {
     },
     analyticsAlertCron: process.env.ANALYTICS_ALERT_CRON || "",
     analyticsIngestCron: process.env.ANALYTICS_INGEST_CRON || "",
+    alertasProCron: process.env.ALERTAS_PRO_CRON || "0 6 * * *",
     analyticsIngestLookbackMonths: {
         ciclo: Number(process.env.ANALYTICS_CICLO_LOOKBACK_MONTHS || 24),
         base: Number(process.env.ANALYTICS_BASE_LOOKBACK_MONTHS || 6),

@@ -7,6 +7,7 @@ import { DadosCotacao, FonteDados } from "./types";
 import fs from "fs";
 import { montarMensagensWhatsApp } from "./messaging";
 import { runAnalyticsAlertEngine, runAnalyticsIngestionPipeline } from "./analytics";
+import { runAlertasProEngine } from "./alertas-pro-engine";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -63,6 +64,7 @@ app.get("/api/status", (_req, res) => {
             cronSchedules: config.cronSchedules,
             historicoPreloadCron: config.historicoPreloadCron,
             analyticsAlertCron: config.analyticsAlertCron,
+            alertasProCron: config.alertasProCron,
             headless: config.headless,
             whatsappConfigurado:
                 !!config.whatsapp.groupId &&
@@ -372,6 +374,30 @@ app.listen(PORT, () => {
         }
     } else {
         logger.info("ℹ️ ANALYTICS_INGEST_CRON não definido. Agendador de ingestão analítica desativado.");
+    }
+
+    // ── Cron alertas pro (gatilhos por usuário) ─────────
+    if (config.alertasProCron) {
+        if (!cron.validate(config.alertasProCron)) {
+            logger.warn(`⚠️ ALERTAS_PRO_CRON inválido: "${config.alertasProCron}"`);
+        } else {
+            cron.schedule(
+                config.alertasProCron,
+                async () => {
+                    logger.info(`⏰ Cron alertas-pro disparado (${config.alertasProCron})`);
+                    try {
+                        await runAlertasProEngine();
+                    } catch (error) {
+                        const msg = error instanceof Error ? error.message : String(error);
+                        logger.error("Falha ao executar alertas-pro no cron.", msg);
+                    }
+                },
+                { timezone: "America/Sao_Paulo" }
+            );
+            logger.info(`  ✅ Cron alertas-pro agendado: ${config.alertasProCron}`);
+        }
+    } else {
+        logger.info("ℹ️ ALERTAS_PRO_CRON não definido. Agendador de alertas pro desativado.");
     }
 
     // ── Verificação de execução perdida (startup) ────
