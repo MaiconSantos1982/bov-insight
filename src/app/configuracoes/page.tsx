@@ -163,9 +163,9 @@ export default function ConfiguracoesPage() {
         setUsuarioIdFallback(resolvedUsuarioId)
       }
 
-      const nomeFinal = canEditPersonalData ? nome : (usuarioConfiguracao?.nome || nome)
+      const nomeFinal = nome
       const emailFinal = canEditPersonalData ? (email || null) : (usuarioConfiguracao?.email || null)
-      const telefoneFinal = canEditPersonalData ? telefoneWhatsapp : (usuarioConfiguracao?.telefone_whatsapp || telefoneWhatsapp)
+      const telefoneFinal = telefoneWhatsapp
 
       const { error: perfilError } = await supabase
         .from("boigordo_usuarios_perfil")
@@ -259,9 +259,9 @@ export default function ConfiguracoesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Nome</Label><Input value={nome} onChange={(e) => setNome(e.target.value)} readOnly={!canEditPersonalData} /></div>
+            <div className="space-y-2"><Label>Nome</Label><Input value={nome} onChange={(e) => setNome(e.target.value)} /></div>
             <div className="space-y-2"><Label>Email</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} readOnly={!canEditPersonalData} /></div>
-            <div className="space-y-2"><Label>Telefone WhatsApp</Label><Input value={formatPhoneBr(telefoneWhatsapp)} onChange={(e) => setTelefoneWhatsapp(e.target.value)} readOnly={!canEditPersonalData} /></div>
+            <div className="space-y-2"><Label>Telefone WhatsApp</Label><Input value={formatPhoneBr(telefoneWhatsapp)} onChange={(e) => setTelefoneWhatsapp(e.target.value)} /></div>
             <div className="space-y-2"><Label>Status Perfil</Label><Input value={usuarioConfiguracao?.perfil_status || "ATIVO"} readOnly /></div>
           </CardContent>
         </Card>
