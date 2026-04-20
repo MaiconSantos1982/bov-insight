@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PageHeader } from "@/components/page-header"
 import { useData } from "@/lib/data-provider"
-import { PRODUTOS, type AlertaProRegra, type ProdutoKey, supabase } from "@/lib/supabase"
+import { PRODUTOS, type AlertaProRegra, type ProdutoKey } from "@/lib/supabase"
 import { toast } from "sonner"
 
 function isProdutoKey(value: string): value is ProdutoKey {
@@ -72,10 +72,15 @@ function AlertasPageContent() {
   async function handleToggleAlerta(id: string, current: boolean) {
     const next = !current
     setRegras((prev) => prev.map((a) => (a.id === id ? { ...a, ativo: next } : a)))
-    const { error } = await supabase.from("boigordo_alertas_pro_regras").update({ ativo: next }).eq("id", id)
-    if (error) {
+    const response = await fetch("/api/alertas-pro/regras", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ativo: next }),
+    })
+    const payload = await response.json()
+    if (!response.ok || !payload?.ok) {
       setRegras((prev) => prev.map((a) => (a.id === id ? { ...a, ativo: current } : a)))
-      toast.error("Falha ao atualizar alerta", { description: error.message })
+      toast.error("Falha ao atualizar alerta", { description: payload?.error || "Erro desconhecido." })
       return
     }
     toast.success(next ? "Alerta ativado" : "Alerta desativado")
@@ -84,10 +89,15 @@ function AlertasPageContent() {
   async function handleDeleteAlerta(id: string) {
     const current = regras
     setRegras((prev) => prev.filter((a) => a.id !== id))
-    const { error } = await supabase.from("boigordo_alertas_pro_regras").delete().eq("id", id)
-    if (error) {
+    const response = await fetch("/api/alertas-pro/regras", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    })
+    const payload = await response.json()
+    if (!response.ok || !payload?.ok) {
       setRegras(current)
-      toast.error("Falha ao remover", { description: error.message })
+      toast.error("Falha ao remover", { description: payload?.error || "Erro desconhecido." })
       return
     }
     toast.success("Alerta removido com sucesso")
@@ -112,15 +122,20 @@ function AlertasPageContent() {
       ativo: true,
       ultimo_disparo: null,
     }
-    const { data, error } = await supabase.from("boigordo_alertas_pro_regras").insert(payload).select("*").single()
+    const response = await fetch("/api/alertas-pro/regras", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    const result = await response.json()
     setSaving(false)
 
-    if (error || !data) {
-      toast.error("Falha ao criar alerta", { description: error?.message || "Erro desconhecido." })
+    if (!response.ok || !result?.ok || !result?.row) {
+      toast.error("Falha ao criar alerta", { description: result?.error || "Erro desconhecido." })
       return
     }
 
-    setRegras((prev) => [data as AlertaProRegra, ...prev])
+    setRegras((prev) => [result.row as AlertaProRegra, ...prev])
     setDialogOpen(false)
     setNewValor("")
     toast.success("Alerta criado")
