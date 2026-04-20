@@ -18,6 +18,23 @@ type SaveConfigBody = {
   telefone_destino: string
 }
 
+function normalizePhoneE164Br(value: string | null | undefined): string | null {
+  if (!value) return null
+  const digits = value.replace(/\D/g, "")
+  if (!digits) return null
+
+  if (digits.startsWith("55")) {
+    if (digits.length !== 12 && digits.length !== 13) return null
+    return `+${digits}`
+  }
+
+  if (digits.length === 10 || digits.length === 11) {
+    return `+55${digits}`
+  }
+
+  return null
+}
+
 export async function POST(request: Request) {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -43,6 +60,22 @@ export async function POST(request: Request) {
     )
   }
 
+  const telefoneWhatsappE164 = normalizePhoneE164Br(body.telefone_whatsapp)
+  if (!telefoneWhatsappE164) {
+    return NextResponse.json(
+      { ok: false, error: "Telefone WhatsApp inválido. Use DDD + número (10 ou 11 dígitos)." },
+      { status: 400 }
+    )
+  }
+
+  const telefoneDestinoE164 = normalizePhoneE164Br(body.telefone_destino || body.telefone_whatsapp)
+  if (!telefoneDestinoE164) {
+    return NextResponse.json(
+      { ok: false, error: "Telefone de destino inválido. Use DDD + número (10 ou 11 dígitos)." },
+      { status: 400 }
+    )
+  }
+
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
@@ -54,7 +87,7 @@ export async function POST(request: Request) {
         usuario_id: body.usuario_id,
         nome: body.nome,
         email: body.email,
-        telefone_whatsapp: body.telefone_whatsapp,
+        telefone_whatsapp: telefoneWhatsappE164,
         papeis_mercado: body.papeis_mercado || [],
         etapas_operacao: body.etapas_operacao || [],
         cabecas_gado: body.cabecas_gado,
@@ -72,7 +105,7 @@ export async function POST(request: Request) {
     const { error: destinoUpdateError } = await supabaseAdmin
       .from("boigordo_alertas_pro_destinos")
       .update({
-        telefone_destino: body.telefone_destino || body.telefone_whatsapp,
+        telefone_destino: telefoneDestinoE164,
         ativo: true,
       })
       .eq("id", body.destino_id)
@@ -85,7 +118,7 @@ export async function POST(request: Request) {
       .from("boigordo_alertas_pro_destinos")
       .insert({
         usuario_id: body.usuario_id,
-        telefone_destino: body.telefone_destino || body.telefone_whatsapp,
+        telefone_destino: telefoneDestinoE164,
         ativo: true,
         frequencia: "IMEDIATO",
         timezone: "America/Sao_Paulo",
@@ -100,4 +133,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
-
