@@ -27,7 +27,7 @@ function montarMensagemCepea(dados: DadosCotacao): string {
     const linhas = [
         `📊 *Fechamento Diário | CEPEA*`,
         ``,
-        `🐂 *Boi Gordo Físico (CEPEA):* R$ ${cepeaBrl}`,
+        `🐂 *Boi Gordo:* R$ ${cepeaBrl}`,
         `🐂 *Bezerro:* R$ ${bezerro}`,
         `🌽 *Milho:* R$ ${milho}`,
         `🌱 *Soja:* R$ ${soja}`,

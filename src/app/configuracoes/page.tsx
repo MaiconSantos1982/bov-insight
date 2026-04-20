@@ -103,7 +103,15 @@ export default function ConfiguracoesPage() {
   }, [assinaturasProximoVencimento, usuarioConfiguracao?.usuario_id])
 
   const destinoAtivo = useMemo(() => alertasProDestinos.find((d) => d.ativo) || null, [alertasProDestinos])
-  const usuarioId = usuarioConfiguracao?.usuario_id || assinaturaAtual?.usuario_id || destinoAtivo?.usuario_id || null
+  const [usuarioIdFallback, setUsuarioIdFallback] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const saved = window.localStorage.getItem("bovinsight_usuario_id")
+    if (saved) setUsuarioIdFallback(saved)
+  }, [])
+
+  const usuarioId = usuarioConfiguracao?.usuario_id || assinaturaAtual?.usuario_id || destinoAtivo?.usuario_id || usuarioIdFallback || null
 
   const regrasUsuario = useMemo(
     () => alertasProRegras.filter((item) => (usuarioId ? item.usuario_id === usuarioId : true)),
@@ -142,11 +150,6 @@ export default function ConfiguracoesPage() {
   }
 
   async function handleSalvarConfiguracoes() {
-    if (!usuarioId) {
-      toast.error("Sem usuario base", { description: "Cadastre ao menos um perfil para habilitar persistencia." })
-      return
-    }
-
     if (!nome || !telefoneWhatsapp) {
       toast.error("Campos obrigatorios", { description: "Nome e telefone WhatsApp sao obrigatorios." })
       return
@@ -154,6 +157,12 @@ export default function ConfiguracoesPage() {
 
     setSalvando(true)
     try {
+      const resolvedUsuarioId = usuarioId || (typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`)
+      if (!usuarioId && typeof window !== "undefined") {
+        window.localStorage.setItem("bovinsight_usuario_id", resolvedUsuarioId)
+        setUsuarioIdFallback(resolvedUsuarioId)
+      }
+
       const nomeFinal = canEditPersonalData ? nome : (usuarioConfiguracao?.nome || nome)
       const emailFinal = canEditPersonalData ? (email || null) : (usuarioConfiguracao?.email || null)
       const telefoneFinal = canEditPersonalData ? telefoneWhatsapp : (usuarioConfiguracao?.telefone_whatsapp || telefoneWhatsapp)
@@ -161,7 +170,7 @@ export default function ConfiguracoesPage() {
       const { error: perfilError } = await supabase
         .from("boigordo_usuarios_perfil")
         .upsert({
-          usuario_id: usuarioId,
+          usuario_id: resolvedUsuarioId,
           nome: nomeFinal,
           email: emailFinal,
           telefone_whatsapp: telefoneFinal,
@@ -186,7 +195,7 @@ export default function ConfiguracoesPage() {
         const { error: destinoInsertError } = await supabase
           .from("boigordo_alertas_pro_destinos")
           .insert({
-            usuario_id: usuarioId,
+            usuario_id: resolvedUsuarioId,
             telefone_destino: telefoneDestino || telefoneFinal,
             ativo: true,
             frequencia: "IMEDIATO",

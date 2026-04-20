@@ -61,6 +61,7 @@ app.get("/api/status", (_req, res) => {
         ultimaFonte: ultimoResultado?.fonte || "cepea",
         config: {
             cronSchedules: config.cronSchedules,
+            historicoPreloadCron: config.historicoPreloadCron,
             analyticsAlertCron: config.analyticsAlertCron,
             headless: config.headless,
             whatsappConfigurado:
@@ -284,6 +285,38 @@ app.listen(PORT, () => {
             );
             logger.info(`  ✅ Cron agendado: ${schedule}`);
         }
+    }
+
+    if (config.historicoPreloadCron) {
+        if (!cron.validate(config.historicoPreloadCron)) {
+            logger.warn(`⚠️ HISTORICO_PRELOAD_CRON inválido: "${config.historicoPreloadCron}"`);
+        } else {
+            cron.schedule(
+                config.historicoPreloadCron,
+                async () => {
+                    if (executando) {
+                        logger.warn("⏭️ Cron histórico:preload ignorado (execução anterior ainda em andamento).");
+                        return;
+                    }
+                    logger.info(`⏰ Cron histórico:preload disparado (${config.historicoPreloadCron})`);
+                    executando = true;
+                    ultimoErro = null;
+                    try {
+                        ultimoResultado = await executarWorker({ fonte: "cepea", enviarMensagem: false });
+                    } catch (error) {
+                        const msg = error instanceof Error ? error.message : String(error);
+                        ultimoErro = msg;
+                        logger.error("Falha ao executar histórico:preload no cron.", msg);
+                    } finally {
+                        executando = false;
+                    }
+                },
+                { timezone: "America/Sao_Paulo" }
+            );
+            logger.info(`  ✅ Cron histórico:preload agendado: ${config.historicoPreloadCron}`);
+        }
+    } else {
+        logger.info("ℹ️ HISTORICO_PRELOAD_CRON não definido. Pré-carga de histórico desativada.");
     }
 
     // ── Cron analytics: alertas analíticos ─────────────

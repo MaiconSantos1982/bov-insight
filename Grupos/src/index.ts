@@ -58,6 +58,7 @@ function iniciarServidorControle() {
             ok: true,
             executando,
             cronSchedules: config.cronSchedules,
+            historicoPreloadCron: config.historicoPreloadCron,
             analyticsAlertCron: config.analyticsAlertCron,
             analyticsIngestCron: config.analyticsIngestCron,
         });
@@ -171,6 +172,35 @@ async function main(): Promise<void> {
             );
 
             logger.info(`  ✅ Agendado: ${schedule}`);
+        }
+
+        if (config.historicoPreloadCron) {
+            if (!cron.validate(config.historicoPreloadCron)) {
+                logger.error(`❌ HISTORICO_PRELOAD_CRON inválido: "${config.historicoPreloadCron}"`);
+                process.exit(1);
+            }
+
+            cron.schedule(
+                config.historicoPreloadCron,
+                async () => {
+                    logger.info(`⏰ Cron histórico:preload disparado (${config.historicoPreloadCron})!`);
+                    try {
+                        await executarComLock(
+                            { fonte: "cepea", enviarMensagem: false },
+                            "⏰ [cron:historico-preload]"
+                        );
+                    } catch (error) {
+                        logger.error("Falha no cron histórico:preload. Continuando agendador...");
+                    }
+                },
+                {
+                    timezone: "America/Sao_Paulo",
+                }
+            );
+
+            logger.info(`  ✅ Agendado histórico:preload: ${config.historicoPreloadCron}`);
+        } else {
+            logger.info("ℹ️ HISTORICO_PRELOAD_CRON não definido. Pré-carga de histórico desativada.");
         }
 
         if (config.analyticsAlertCron) {

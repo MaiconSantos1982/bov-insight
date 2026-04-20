@@ -45,6 +45,8 @@ export const config = {
     cronSchedules: (process.env.CRON_SCHEDULE || "0 19 * * 1-5")
         .split(",")
         .map((s) => s.trim()),
+    // Pré-carga diária do histórico (antes do envio principal)
+    historicoPreloadCron: process.env.HISTORICO_PRELOAD_CRON || "30 3 * * 1-5",
 
     // Browser
     headless: process.env.HEADLESS !== "false",
