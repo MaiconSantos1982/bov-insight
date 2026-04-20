@@ -38,9 +38,16 @@ function AlertasPageContent() {
   const initialCondicao: "acima_de" | "abaixo_de" = condicaoParam === "abaixo_de" ? "abaixo_de" : "acima_de"
   const initialValor = valorParam && !isNaN(Number(valorParam)) ? Number(valorParam).toFixed(2) : ""
 
+  const [userIdFallback, setUserIdFallback] = useState<string | null>(null)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const saved = window.localStorage.getItem("bovinsight_usuario_id")
+    if (saved) setUserIdFallback(saved)
+  }, [])
+
   const userId = useMemo(
-    () => usuarioConfiguracao?.usuario_id || alertasProDestinos[0]?.usuario_id || alertasProRegras[0]?.usuario_id || null,
-    [usuarioConfiguracao, alertasProDestinos, alertasProRegras]
+    () => usuarioConfiguracao?.usuario_id || userIdFallback || null,
+    [usuarioConfiguracao, userIdFallback]
   )
 
   const [regras, setRegras] = useState<AlertaProRegra[]>([])
@@ -50,7 +57,10 @@ function AlertasPageContent() {
   const [newValor, setNewValor] = useState(initialValor)
   const [saving, setSaving] = useState(false)
 
-  const destinoAtivo = useMemo(() => alertasProDestinos.find((d) => d.ativo), [alertasProDestinos])
+  const destinoAtivo = useMemo(
+    () => alertasProDestinos.find((d) => d.ativo && (!userId || d.usuario_id === userId)),
+    [alertasProDestinos, userId]
+  )
 
   useEffect(() => {
     setRegras(buildInitialRules(alertasProRegras, userId))

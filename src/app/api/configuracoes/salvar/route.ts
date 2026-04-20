@@ -101,22 +101,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: perfilError.message }, { status: 500 })
   }
 
-  if (body.destino_id) {
-    const { error: destinoUpdateError } = await supabaseAdmin
-      .from("boigordo_alertas_pro_destinos")
-      .update({
-        telefone_destino: telefoneDestinoE164,
-        ativo: true,
-      })
-      .eq("id", body.destino_id)
-
-    if (destinoUpdateError) {
-      return NextResponse.json({ ok: false, error: destinoUpdateError.message }, { status: 500 })
-    }
-  } else {
-    const { error: destinoInsertError } = await supabaseAdmin
-      .from("boigordo_alertas_pro_destinos")
-      .insert({
+  const { error: destinoUpsertError } = await supabaseAdmin
+    .from("boigordo_alertas_pro_destinos")
+    .upsert(
+      {
+        id: body.destino_id || undefined,
         usuario_id: body.usuario_id,
         telefone_destino: telefoneDestinoE164,
         ativo: true,
@@ -124,11 +113,12 @@ export async function POST(request: Request) {
         timezone: "America/Sao_Paulo",
         tipos_alerta: [],
         severidades: [],
-      })
+      },
+      { onConflict: "usuario_id" }
+    )
 
-    if (destinoInsertError) {
-      return NextResponse.json({ ok: false, error: destinoInsertError.message }, { status: 500 })
-    }
+  if (destinoUpsertError) {
+    return NextResponse.json({ ok: false, error: destinoUpsertError.message }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

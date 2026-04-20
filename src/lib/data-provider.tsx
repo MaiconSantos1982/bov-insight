@@ -205,7 +205,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         .from('boigordo_view_usuario_configuracoes')
                         .select('*')
                         .order('nome', { ascending: true })
-                        .limit(1),
+                        .limit(200),
                     supabase
                         .from('boigordo_view_assinaturas_proximo_vencimento')
                         .select('*')
@@ -264,7 +264,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 if (usuarioConfigRes.error) {
                     console.error('Erro ao buscar boigordo_view_usuario_configuracoes:', usuarioConfigRes.error)
                 } else {
-                    const row = (usuarioConfigRes.data || [])[0] as UsuarioConfiguracao | undefined
+                    const rows = (usuarioConfigRes.data || []) as UsuarioConfiguracao[]
+                    const persistedUserId = typeof window !== "undefined"
+                        ? window.localStorage.getItem("bovinsight_usuario_id")
+                        : null
+                    const row = (persistedUserId
+                        ? rows.find((item) => item.usuario_id === persistedUserId)
+                        : undefined) || rows[0]
+                    if (row?.usuario_id && typeof window !== "undefined") {
+                        window.localStorage.setItem("bovinsight_usuario_id", row.usuario_id)
+                    }
                     setUsuarioConfiguracao(row || null)
                 }
 

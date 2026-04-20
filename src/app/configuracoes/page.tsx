@@ -96,12 +96,6 @@ export default function ConfiguracoesPage() {
 
   const canEditPersonalData = process.env.NEXT_PUBLIC_CONFIG_ALLOW_ADMIN_EDIT === "true"
 
-  const assinaturaAtual = useMemo(() => {
-    if (!usuarioConfiguracao?.usuario_id) return assinaturasProximoVencimento[0] || null
-    return assinaturasProximoVencimento.find((item) => item.usuario_id === usuarioConfiguracao.usuario_id) || assinaturasProximoVencimento[0] || null
-  }, [assinaturasProximoVencimento, usuarioConfiguracao?.usuario_id])
-
-  const destinoAtivo = useMemo(() => alertasProDestinos.find((d) => d.ativo) || null, [alertasProDestinos])
   const [usuarioIdFallback, setUsuarioIdFallback] = useState<string | null>(null)
 
   useEffect(() => {
@@ -110,7 +104,17 @@ export default function ConfiguracoesPage() {
     if (saved) setUsuarioIdFallback(saved)
   }, [])
 
-  const usuarioId = usuarioConfiguracao?.usuario_id || assinaturaAtual?.usuario_id || destinoAtivo?.usuario_id || usuarioIdFallback || null
+  const usuarioId = usuarioConfiguracao?.usuario_id || usuarioIdFallback || null
+
+  const assinaturaAtual = useMemo(() => {
+    if (!usuarioId) return null
+    return assinaturasProximoVencimento.find((item) => item.usuario_id === usuarioId) || null
+  }, [assinaturasProximoVencimento, usuarioId])
+
+  const destinoAtivo = useMemo(
+    () => alertasProDestinos.find((d) => d.ativo && (!usuarioId || d.usuario_id === usuarioId)) || null,
+    [alertasProDestinos, usuarioId]
+  )
 
   const regrasUsuario = useMemo(
     () => alertasProRegras.filter((item) => (usuarioId ? item.usuario_id === usuarioId : true)),
@@ -190,6 +194,9 @@ export default function ConfiguracoesPage() {
       }
 
       toast.success("Configuracoes salvas", { description: "Dados atualizados no Supabase com sucesso." })
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => window.location.reload(), 300)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       toast.error("Falha ao salvar", { description: message })
