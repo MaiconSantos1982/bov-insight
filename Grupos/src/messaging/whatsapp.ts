@@ -127,6 +127,21 @@ function obterDataEmSaoPaulo(dataIso: string): { year: number; month: number; da
     return { year, month, day };
 }
 
+function normalizarDataIsoOuNulo(data: string | null | undefined): string | null {
+    if (!data) return null;
+    const texto = data.trim();
+    const matchBr = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (matchBr) {
+        const [, dd, mm, yyyy] = matchBr;
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    const matchIso = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (matchIso) {
+        return texto;
+    }
+    return null;
+}
+
 function formatarDataReferenciaAnterior(dataExtracaoIso: string): string {
     const baseSp = obterDataEmSaoPaulo(dataExtracaoIso);
     const d = new Date(Date.UTC(baseSp.year, baseSp.month - 1, baseSp.day));
@@ -140,8 +155,24 @@ function formatarDataReferenciaAnterior(dataExtracaoIso: string): string {
     });
 }
 
-function anexarDataReferencia(mensagem: string, dataExtracaoIso: string): string {
-    const dataRef = formatarDataReferenciaAnterior(dataExtracaoIso);
+function formatarDataReferenciaIso(dataIso: string): string {
+    return new Date(`${dataIso}T00:00:00Z`).toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "America/Sao_Paulo",
+    });
+}
+
+function anexarDataReferencia(
+    mensagem: string,
+    dataExtracaoIso: string,
+    dataReferenciaReal?: string | null
+): string {
+    const dataRefIso = normalizarDataIsoOuNulo(dataReferenciaReal);
+    const dataRef = dataRefIso
+        ? formatarDataReferenciaIso(dataRefIso)
+        : formatarDataReferenciaAnterior(dataExtracaoIso);
     return `${mensagem}\n\nData de referência: ${dataRef}`;
 }
 
@@ -250,10 +281,22 @@ export function montarMensagensWhatsApp(dados: DadosCotacao): string[] {
             montarMensagemMercadoFuturo(dados.datagro_mercado_futuro),
             montarMensagemBoiMundo(dados.datagro_boi_mundo),
         ];
-        return mensagens.map((m) => anexarDataReferencia(m, dados.data_extracao));
+        return mensagens.map((m, index) =>
+            anexarDataReferencia(
+                m,
+                dados.data_extracao,
+                index === 0 ? dados.cepea_data_referencia : null
+            )
+        );
     }
 
-    return [anexarDataReferencia(montarMensagemCepea(dados), dados.data_extracao)];
+    return [
+        anexarDataReferencia(
+            montarMensagemCepea(dados),
+            dados.data_extracao,
+            dados.cepea_data_referencia
+        ),
+    ];
 }
 
 /**
