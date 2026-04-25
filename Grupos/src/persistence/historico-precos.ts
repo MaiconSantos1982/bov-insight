@@ -14,14 +14,14 @@ export interface HistoricoPrecoRecente {
     produto: ProdutoHistorico;
     data: string;
     valorBrl: number;
-    valorUsd: number;
+    valorUsd: number | null;
 }
 
 interface HistoricoPrecoPayload {
     data: string;
     produto: ProdutoHistorico;
     valor_brl: number;
-    valor_usd: number;
+    valor_usd: number | null;
 }
 
 function garantirSupabaseConfigurado(): void {
@@ -52,15 +52,15 @@ function toPayload(input: HistoricoPrecoInput): HistoricoPrecoPayload | null {
     if (input.valorBrl == null || Number.isNaN(input.valorBrl)) {
         return null;
     }
-    if (input.valorUsd == null || Number.isNaN(input.valorUsd)) {
-        return null;
-    }
 
     return {
         data: normalizarDataParaIso(input.dataReferencia),
         produto: input.produto,
         valor_brl: input.valorBrl,
-        valor_usd: input.valorUsd,
+        valor_usd:
+            input.valorUsd == null || Number.isNaN(input.valorUsd)
+                ? null
+                : input.valorUsd,
     };
 }
 
@@ -143,7 +143,7 @@ export async function buscarUltimosHistoricosPorProduto(
         produto: ProdutoHistorico;
         data: string;
         valor_brl: number;
-        valor_usd: number;
+        valor_usd: number | null;
     }>;
 
     const latest: Partial<Record<ProdutoHistorico, HistoricoPrecoRecente>> = {};
@@ -155,7 +155,10 @@ export async function buscarUltimosHistoricosPorProduto(
             produto: row.produto,
             data: row.data,
             valorBrl: Number(row.valor_brl),
-            valorUsd: Number(row.valor_usd),
+            valorUsd:
+                row.valor_usd == null || Number.isNaN(Number(row.valor_usd))
+                    ? null
+                    : Number(row.valor_usd),
         };
     }
 
@@ -181,7 +184,7 @@ export async function buscarHistoricosPorData(
         produto: ProdutoHistorico;
         data: string;
         valor_brl: number;
-        valor_usd: number;
+        valor_usd: number | null;
     }>;
 
     const byProduto: Partial<Record<ProdutoHistorico, HistoricoPrecoRecente>> = {};
@@ -190,7 +193,10 @@ export async function buscarHistoricosPorData(
             produto: row.produto,
             data: row.data,
             valorBrl: Number(row.valor_brl),
-            valorUsd: Number(row.valor_usd),
+            valorUsd:
+                row.valor_usd == null || Number.isNaN(Number(row.valor_usd))
+                    ? null
+                    : Number(row.valor_usd),
         };
     }
 

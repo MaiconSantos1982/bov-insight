@@ -545,87 +545,47 @@ export async function executarWorker(
                     resultadoMilho.dados?.data ??
                     resultadoSoja.dados?.data
             );
-            const dataPersistencia =
-                dataReferenciaCapturada && dataReferenciaCapturada >= dataEsperadaHistorico
-                    ? dataReferenciaCapturada
-                    : dataEsperadaHistorico;
-
-            const valoresAtuais = {
-                boi_gordo: {
-                    valorBrl: cepeaFisicoBrl,
-                    valorUsd: cepeaFisicoUsd,
-                },
-                bezerro: {
-                    valorBrl: cepeaBezerroBrl,
-                    valorUsd: resultadoBezerro.dados?.valorUsd ?? null,
-                },
-                milho: {
-                    valorBrl: cepeaMilhoBrl,
-                    valorUsd: resultadoMilho.dados?.valorUsd ?? null,
-                },
-                soja: {
-                    valorBrl: cepeaSojaBrl,
-                    valorUsd: resultadoSoja.dados?.valorUsd ?? null,
-                },
-            };
-
-            const produtos = Object.keys(valoresAtuais) as Array<
-                keyof typeof valoresAtuais
-            >;
-            const precisaFallback = produtos.some(
-                (produto) =>
-                    valoresAtuais[produto].valorBrl == null ||
-                    valoresAtuais[produto].valorUsd == null
-            );
-
-            if (precisaFallback) {
-                const ultimos = await buscarUltimosHistoricosPorProduto([
-                    "boi_gordo",
-                    "bezerro",
-                    "milho",
-                    "soja",
-                ]);
-                for (const produto of produtos) {
-                    if (valoresAtuais[produto].valorBrl == null) {
-                        valoresAtuais[produto].valorBrl = ultimos[produto]?.valorBrl ?? null;
-                    }
-                    if (valoresAtuais[produto].valorUsd == null) {
-                        valoresAtuais[produto].valorUsd = ultimos[produto]?.valorUsd ?? null;
-                    }
-                }
-            }
-
-            const persistencia = await persistirHistoricoPrecos([
-                {
-                    produto: "boi_gordo",
-                    dataReferencia: dataPersistencia,
-                    valorBrl: valoresAtuais.boi_gordo.valorBrl,
-                    valorUsd: valoresAtuais.boi_gordo.valorUsd,
-                },
-                {
-                    produto: "bezerro",
-                    dataReferencia: dataPersistencia,
-                    valorBrl: valoresAtuais.bezerro.valorBrl,
-                    valorUsd: valoresAtuais.bezerro.valorUsd,
-                },
-                {
-                    produto: "milho",
-                    dataReferencia: dataPersistencia,
-                    valorBrl: valoresAtuais.milho.valorBrl,
-                    valorUsd: valoresAtuais.milho.valorUsd,
-                },
-                {
-                    produto: "soja",
-                    dataReferencia: dataPersistencia,
-                    valorBrl: valoresAtuais.soja.valorBrl,
-                    valorUsd: valoresAtuais.soja.valorUsd,
-                },
-            ]);
-
-            if (persistencia.ignorados > 0) {
+            if (!dataReferenciaCapturada) {
                 logger.warn(
-                    `⚠️ Histórico preenchido parcialmente para ${dataPersistencia}.`
+                    "⚠️ Histórico não persistido: sem data de referência CEPEA confiável na execução."
                 );
+            } else if (dataReferenciaCapturada < dataEsperadaHistorico) {
+                logger.warn(
+                    `⚠️ Histórico não persistido: data capturada (${dataReferenciaCapturada}) é anterior à esperada (${dataEsperadaHistorico}).`
+                );
+            } else {
+                const persistencia = await persistirHistoricoPrecos([
+                    {
+                        produto: "boi_gordo",
+                        dataReferencia: dataReferenciaCapturada,
+                        valorBrl: cepeaFisicoBrl,
+                        valorUsd: cepeaFisicoUsd,
+                    },
+                    {
+                        produto: "bezerro",
+                        dataReferencia: dataReferenciaCapturada,
+                        valorBrl: cepeaBezerroBrl,
+                        valorUsd: resultadoBezerro.dados?.valorUsd ?? null,
+                    },
+                    {
+                        produto: "milho",
+                        dataReferencia: dataReferenciaCapturada,
+                        valorBrl: cepeaMilhoBrl,
+                        valorUsd: resultadoMilho.dados?.valorUsd ?? null,
+                    },
+                    {
+                        produto: "soja",
+                        dataReferencia: dataReferenciaCapturada,
+                        valorBrl: cepeaSojaBrl,
+                        valorUsd: resultadoSoja.dados?.valorUsd ?? null,
+                    },
+                ]);
+
+                if (persistencia.ignorados > 0) {
+                    logger.warn(
+                        `⚠️ Histórico preenchido parcialmente para ${dataReferenciaCapturada}.`
+                    );
+                }
             }
         } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
@@ -689,9 +649,17 @@ export async function executarWorker(
             dados.datagro_boi_brasil.length > 0 ||
             dados.datagro_mercado_futuro.length > 0 ||
             dados.datagro_boi_mundo.length > 0;
+        const cepeaDataRefIso = normalizarDataIsoOuNulo(dados.cepea_data_referencia);
+        const cepeaDesatualizado = !!cepeaDataRefIso
+            ? cepeaDataRefIso < dataEsperadaHistorico
+            : true;
 
         if (!enviarMensagem) {
             logger.info("📭 Envio WhatsApp desativado para esta execução.");
+        } else if (cepeaDesatualizado) {
+            logger.warn(
+                `⏭️ Envio bloqueado para evitar repetição de fechamento antigo (esperado=${dataEsperadaHistorico}, encontrado=${cepeaDataRefIso ?? "sem data"}).`
+            );
         } else {
             if (resultadoCepea.sucesso || resultadoTv.sucesso || temDadosDatagro) {
                 await enviarWhatsApp(dados);
