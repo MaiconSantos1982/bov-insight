@@ -50,6 +50,25 @@ function getYesterdayIsoInSaoPaulo(): string {
   return formatter.format(dt)
 }
 
+function getPreviousBusinessDayIsoInSaoPaulo(fromDate = new Date()): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+
+  const todaySaoPaulo = formatter.format(fromDate)
+  const dt = new Date(`${todaySaoPaulo}T12:00:00-03:00`)
+  dt.setUTCDate(dt.getUTCDate() - 1)
+
+  while (true) {
+    const candidate = formatter.format(dt)
+    if (isBusinessDay(candidate)) return candidate
+    dt.setUTCDate(dt.getUTCDate() - 1)
+  }
+}
+
 export async function POST(request: Request) {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -68,8 +87,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Payload JSON inválido." }, { status: 400 })
   }
 
-  const items = Array.isArray((body as { items?: unknown[] })?.items)
-    ? ((body as { items: unknown[] }).items as unknown[])
+  const parsedBody = body as { items?: unknown[]; allowHistorical?: boolean }
+  const allowHistorical = parsedBody?.allowHistorical === true
+  const items = Array.isArray(parsedBody?.items)
+    ? (parsedBody.items as unknown[])
     : []
 
   if (!items.length) {
@@ -117,11 +138,25 @@ export async function POST(request: Request) {
 
   const maxDate = parsed.map((item) => item.data).sort().at(-1)
   const yesterdayIso = getYesterdayIsoInSaoPaulo()
+  const previousBusinessDayIso = getPreviousBusinessDayIsoInSaoPaulo()
   if (maxDate && maxDate > yesterdayIso) {
     return NextResponse.json(
       {
         ok: false,
         error: `Data ${maxDate} ainda não deve ser consolidada. Limite atual: ${yesterdayIso}.`,
+      },
+      { status: 400 }
+    )
+  }
+
+  if (!allowHistorical && maxDate && maxDate !== previousBusinessDayIso) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          `Data de referência ${maxDate} fora da janela esperada. ` +
+          `Esperado: ${previousBusinessDayIso}. ` +
+          "Se for correção retroativa, envie allowHistorical=true.",
       },
       { status: 400 }
     )

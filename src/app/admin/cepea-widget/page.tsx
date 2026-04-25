@@ -332,7 +332,7 @@ export default function AdminCepeaWidgetPage() {
       const response = await fetch("/api/admin/cepea-widget/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: mappedRows }),
+        body: JSON.stringify({ items: mappedRows, allowHistorical: false }),
       })
 
       const payload = await response.json()
