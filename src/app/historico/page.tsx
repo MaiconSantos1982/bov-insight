@@ -13,11 +13,13 @@ import { PRODUTOS, type ProdutoKey, type HistoricoPreco } from "@/lib/supabase"
 
 const productOrder: ProdutoKey[] = ["boi_gordo", "bezerro", "milho", "soja"]
 
-function formatCurrencyBRL(value: number) {
+function formatCurrencyBRL(value: number | null | undefined) {
+    if (value == null || Number.isNaN(value)) return "—"
     return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 }
 
-function formatCurrencyUSD(value: number) {
+function formatCurrencyUSD(value: number | null | undefined) {
+    if (value == null || Number.isNaN(value)) return "—"
     return value.toLocaleString("en-US", { style: "currency", currency: "USD" })
 }
 

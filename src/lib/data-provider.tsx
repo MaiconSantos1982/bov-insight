@@ -43,7 +43,7 @@ export interface LatestPrice {
     data: string
     produto: string
     valor_brl: number
-    valor_usd: number
+    valor_usd: number | null
 }
 
 interface DataContextType {
