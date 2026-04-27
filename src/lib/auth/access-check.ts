@@ -68,6 +68,7 @@ export function getAdminClient() {
 export async function checkAccessByEmail(email: string): Promise<{ ok: true; result: AccessResult } | { ok: false; error: string }> {
   const { client, error } = getAdminClient()
   if (!client) return { ok: false, error: error || "Erro ao criar client Supabase." }
+  const superAdmin = isSuperAdminEmail(email)
 
   const { data: perfilPorEmail, error: perfilError } = await client
     .from("boigordo_usuarios_perfil")
@@ -192,7 +193,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
     )
 
   const bestStatus = pickBestStatus(statuses)
-  const allowed = bestStatus === "ATIVA" || bestStatus === "TRIAL"
+  const allowed = superAdmin || bestStatus === "ATIVA" || bestStatus === "TRIAL"
 
   const assinaturaRef =
     rows.find((item) => item.status === "ATIVA") ||
@@ -204,7 +205,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
     ok: true,
     result: {
       allowed,
-      fonte_busca: fonteBusca,
+      fonte_busca: superAdmin ? "super_admin" : fonteBusca,
       usuario,
       assinatura: assinaturaRef
         ? {
@@ -214,7 +215,13 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
             proximo_vencimento: assinaturaRef.proximo_vencimento,
           }
         : null,
-      motivo: allowed ? "ACESSO_LIBERADO" : bestStatus ? `ASSINATURA_${bestStatus}` : "SEM_ASSINATURA",
+      motivo: superAdmin
+        ? "SUPER_ADMIN_ALLOWLIST"
+        : allowed
+          ? "ACESSO_LIBERADO"
+          : bestStatus
+            ? `ASSINATURA_${bestStatus}`
+            : "SEM_ASSINATURA",
     },
   }
 }

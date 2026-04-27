@@ -41,6 +41,7 @@ export async function POST(request: Request) {
         ok: false,
         error: "Acesso não liberado para este email.",
         motivo: access.result.motivo,
+        fonte_busca: access.result.fonte_busca,
       },
       { status: 403 }
     )
