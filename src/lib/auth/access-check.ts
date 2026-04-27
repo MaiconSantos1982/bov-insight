@@ -51,7 +51,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
   const { client, error } = getAdminClient()
   if (!client) return { ok: false, error: error || "Erro ao criar client Supabase." }
 
-  const { data: perfil, error: perfilError } = await client
+  const { data: perfilPorEmail, error: perfilError } = await client
     .from("boigordo_usuarios_perfil")
     .select("usuario_id,nome,email,status")
     .ilike("email", email)
@@ -60,7 +60,52 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
 
   if (perfilError) return { ok: false, error: perfilError.message }
 
-  if (!perfil?.usuario_id) {
+  let usuario = perfilPorEmail
+    ? {
+        usuario_id: perfilPorEmail.usuario_id as string,
+        nome: (perfilPorEmail.nome as string | null) || null,
+        email: (perfilPorEmail.email as string | null) || email,
+        status_perfil: (perfilPorEmail.status as string | null) || null,
+      }
+    : null
+
+  if (!usuario) {
+    const { data: assinanteView, error: assinanteViewError } = await client
+      .from("boigordo_view_admin_assinantes")
+      .select("usuario_id,nome,email,telefone_whatsapp,perfil_status")
+      .ilike("email", email)
+      .limit(1)
+      .maybeSingle()
+
+    if (assinanteViewError) return { ok: false, error: assinanteViewError.message }
+
+    if (assinanteView?.usuario_id) {
+      usuario = {
+        usuario_id: String(assinanteView.usuario_id),
+        nome: (assinanteView.nome as string | null) || null,
+        email: (assinanteView.email as string | null) || email,
+        status_perfil: (assinanteView.perfil_status as string | null) || "ATIVO",
+      }
+
+      if (assinanteView.telefone_whatsapp) {
+        await client.from("boigordo_usuarios_perfil").upsert(
+          {
+            usuario_id: usuario.usuario_id,
+            nome: usuario.nome || "Cliente",
+            email: usuario.email || email,
+            telefone_whatsapp: assinanteView.telefone_whatsapp,
+            status: usuario.status_perfil || "ATIVO",
+            papeis_mercado: [],
+            etapas_operacao: [],
+            dados_questionario: {},
+          },
+          { onConflict: "usuario_id" }
+        )
+      }
+    }
+  }
+
+  if (!usuario?.usuario_id) {
     return {
       ok: true,
       result: {
@@ -75,7 +120,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
   const { data: assinaturas, error: assinaturasError } = await client
     .from("boigordo_assinaturas")
     .select("id,plano,status,proximo_vencimento,updated_at,created_at")
-    .eq("usuario_id", perfil.usuario_id)
+    .eq("usuario_id", usuario.usuario_id)
     .order("updated_at", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(20)
@@ -102,12 +147,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
     ok: true,
     result: {
       allowed,
-      usuario: {
-        usuario_id: perfil.usuario_id,
-        nome: perfil.nome,
-        email: perfil.email,
-        status_perfil: perfil.status,
-      },
+      usuario,
       assinatura: assinaturaRef
         ? {
             id: assinaturaRef.id,

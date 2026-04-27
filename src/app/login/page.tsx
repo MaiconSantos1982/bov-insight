@@ -1,7 +1,9 @@
 "use client"
 
 import { FormEvent, Suspense, useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -59,31 +61,64 @@ function LoginPageContent() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.12),_transparent_50%)]">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Entrar na plataforma</CardTitle>
-          <CardDescription>Use o email da sua assinatura para acessar o BovInsight.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="voce@empresa.com"
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Validando..." : "Entrar"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      <div className="relative hidden lg:flex flex-col justify-between p-10 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-700 text-white">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
+            <TrendingUp className="size-5" />
+          </div>
+          <div>
+            <p className="font-semibold tracking-wide">BovInsight</p>
+            <p className="text-sm text-white/80">Inteligencia Pecuaria</p>
+          </div>
+        </div>
+
+        <div className="max-w-md space-y-4">
+          <h1 className="text-3xl font-semibold leading-tight">Inteligencia de mercado para decisao no campo.</h1>
+          <p className="text-white/85">
+            Acompanhe indicadores CEPEA, configure alertas e concentre suas operacoes em um painel unico.
+          </p>
+        </div>
+
+        <p className="text-xs text-white/70">© {new Date().getFullYear()} BovInsight</p>
+      </div>
+
+      <div className="flex items-center justify-center p-6 sm:p-10 bg-muted/20">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="space-y-2">
+            <CardTitle className="text-2xl">Entrar na plataforma</CardTitle>
+            <CardDescription>Use o email da sua assinatura para acessar o BovInsight.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="voce@empresa.com"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Validando..." : "Entrar"}
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                Dificuldades para acessar? Fale com o suporte em{" "}
+                <Link href="https://wa.me/5561994783325" className="text-primary hover:underline" target="_blank">
+                  WhatsApp
+                </Link>
+                .
+              </p>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

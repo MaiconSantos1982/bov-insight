@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataProvider } from "@/lib/data-provider";
+import { AppShell } from "@/components/app-shell";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -35,12 +34,7 @@ export default function RootLayout({
             >
                 <DataProvider>
                     <TooltipProvider>
-                        <SidebarProvider>
-                            <AppSidebar />
-                            <SidebarInset>
-                                {children}
-                            </SidebarInset>
-                        </SidebarProvider>
+                        <AppShell>{children}</AppShell>
                     </TooltipProvider>
                 </DataProvider>
                 <Toaster position="bottom-right" duration={4000} />
