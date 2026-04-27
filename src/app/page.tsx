@@ -266,9 +266,10 @@ export default function DashboardPage() {
                                         strokeWidth={2}
                                         fill="url(#fillBoiGordo)"
                                         dot={false}
+                                        connectNulls
                                     />
-                                    <Line type="monotone" dataKey="milho" stroke="var(--chart-3)" strokeWidth={1.5} dot={false} />
-                                    <Line type="monotone" dataKey="soja" stroke="var(--chart-4)" strokeWidth={1.5} dot={false} />
+                                    <Line type="monotone" dataKey="milho" stroke="var(--chart-3)" strokeWidth={1.5} dot={false} connectNulls />
+                                    <Line type="monotone" dataKey="soja" stroke="var(--chart-4)" strokeWidth={1.5} dot={false} connectNulls />
                                 </AreaChart>
                             </ChartContainer>
                         </CardContent>
