@@ -1,10 +1,12 @@
 import { createClient } from "@supabase/supabase-js"
+import crypto from "crypto"
 
 export type AssinaturaStatus = "ATIVA" | "TRIAL" | "INADIMPLENTE" | "CANCELADA" | "EXPIRADA"
 
 export type AccessResult = {
   allowed: boolean
   motivo: string
+  fonte_busca: "perfil" | "view_admin_assinantes" | "super_admin" | "nao_encontrado"
   usuario: {
     usuario_id: string
     nome: string | null
@@ -22,6 +24,22 @@ export type AccessResult = {
 export function normalizeEmail(value: string | undefined): string | null {
   const trimmed = (value || "").trim().toLowerCase()
   return trimmed.includes("@") ? trimmed : null
+}
+
+const STATIC_SUPER_ADMINS = new Set(["maiconsantos1982@gmail.com"])
+
+function isSuperAdminEmail(email: string): boolean {
+  const fromEnv = (process.env.SUPER_ADMIN_EMAILS || "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean)
+
+  return STATIC_SUPER_ADMINS.has(email) || fromEnv.includes(email)
+}
+
+function stableUuidFromEmail(email: string): string {
+  const hex = crypto.createHash("sha256").update(email).digest("hex").slice(0, 32)
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
 }
 
 function pickBestStatus(statuses: AssinaturaStatus[]): AssinaturaStatus | null {
@@ -60,6 +78,8 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
 
   if (perfilError) return { ok: false, error: perfilError.message }
 
+  let fonteBusca: AccessResult["fonte_busca"] = "nao_encontrado"
+
   let usuario = perfilPorEmail
     ? {
         usuario_id: perfilPorEmail.usuario_id as string,
@@ -68,6 +88,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
         status_perfil: (perfilPorEmail.status as string | null) || null,
       }
     : null
+  if (usuario) fonteBusca = "perfil"
 
   if (!usuario) {
     const { data: assinanteView, error: assinanteViewError } = await client
@@ -86,6 +107,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
         email: (assinanteView.email as string | null) || email,
         status_perfil: (assinanteView.perfil_status as string | null) || "ATIVO",
       }
+      fonteBusca = "view_admin_assinantes"
 
       if (assinanteView.telefone_whatsapp) {
         await client.from("boigordo_usuarios_perfil").upsert(
@@ -106,11 +128,46 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
   }
 
   if (!usuario?.usuario_id) {
+    if (isSuperAdminEmail(email)) {
+      const superAdminUserId = stableUuidFromEmail(email)
+      await client.from("boigordo_usuarios_perfil").upsert(
+        {
+          usuario_id: superAdminUserId,
+          nome: "Super Admin",
+          email,
+          telefone_whatsapp: "+5551992049514",
+          status: "ATIVO",
+          papeis_mercado: [],
+          etapas_operacao: [],
+          dados_questionario: {},
+          observacoes: "Usuário liberado por SUPER_ADMIN_EMAILS.",
+        },
+        { onConflict: "usuario_id" }
+      )
+
+      return {
+        ok: true,
+        result: {
+          allowed: true,
+          motivo: "SUPER_ADMIN_ALLOWLIST",
+          fonte_busca: "super_admin",
+          usuario: {
+            usuario_id: superAdminUserId,
+            nome: "Super Admin",
+            email,
+            status_perfil: "ATIVO",
+          },
+          assinatura: null,
+        },
+      }
+    }
+
     return {
       ok: true,
       result: {
         allowed: false,
         motivo: "USUARIO_NAO_ENCONTRADO",
+        fonte_busca: "nao_encontrado",
         usuario: null,
         assinatura: null,
       },
@@ -147,6 +204,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
     ok: true,
     result: {
       allowed,
+      fonte_busca: fonteBusca,
       usuario,
       assinatura: assinaturaRef
         ? {

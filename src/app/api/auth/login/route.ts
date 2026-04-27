@@ -27,6 +27,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: access.error }, { status: 500 })
   }
 
+  console.info("[auth:login] tentativa", {
+    email,
+    allowed: access.result.allowed,
+    motivo: access.result.motivo,
+    fonte_busca: access.result.fonte_busca,
+    usuario_id: access.result.usuario?.usuario_id || null,
+  })
+
   if (!access.result.allowed || !access.result.usuario) {
     return NextResponse.json(
       {

@@ -110,7 +110,7 @@ function LoginPageContent() {
 
               <p className="text-xs text-muted-foreground text-center">
                 Dificuldades para acessar? Fale com o suporte em{" "}
-                <Link href="https://wa.me/5561994783325" className="text-primary hover:underline" target="_blank">
+                <Link href="https://wa.me/5551992049514" className="text-primary hover:underline" target="_blank">
                   WhatsApp
                 </Link>
                 .
