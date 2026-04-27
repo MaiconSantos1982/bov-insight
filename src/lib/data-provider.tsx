@@ -189,6 +189,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 } catch (err) {
                     console.error('Falha ao identificar sessão atual:', err)
                 }
+                const shouldLoadAdmin = Boolean(sessionUserId)
 
                 const [cicloRows, baseRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesHttpRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasHttpRes, billingEventosHttpRes] = await Promise.all([
                     fetchAllRows<CicloPecuarioClassificacao>('boigordo_view_ciclo_pecuario_classificacao', {
@@ -242,7 +243,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         .select('*')
                         .order('created_at', { ascending: true })
                         .limit(200),
-                    fetch('/api/admin/assinantes', { cache: 'no-store' }),
+                    shouldLoadAdmin ? fetch('/api/admin/assinantes', { cache: 'no-store' }) : Promise.resolve(null),
                     supabase
                         .from('boigordo_view_admin_churn_mensal')
                         .select('*')
@@ -258,8 +259,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         .select('*')
                         .order('created_at', { ascending: false })
                         .limit(500),
-                    fetch('/api/admin/assinaturas', { cache: 'no-store' }),
-                    fetch('/api/admin/billing-eventos', { cache: 'no-store' }),
+                    shouldLoadAdmin ? fetch('/api/admin/assinaturas', { cache: 'no-store' }) : Promise.resolve(null),
+                    shouldLoadAdmin ? fetch('/api/admin/billing-eventos', { cache: 'no-store' }) : Promise.resolve(null),
                 ])
 
                 setCicloPecuario(cicloRows)
@@ -318,15 +319,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setGruposNotificacao((gruposRes.data || []) as GrupoNotificacao[])
                 }
 
-                try {
-                    const adminAssinantesJson = await adminAssinantesHttpRes.json() as { ok: boolean; rows?: AdminAssinante[]; error?: string }
-                    if (!adminAssinantesHttpRes.ok || !adminAssinantesJson.ok) {
-                        console.error('Erro ao buscar boigordo_view_admin_assinantes via API:', adminAssinantesJson.error || adminAssinantesHttpRes.statusText)
-                    } else {
-                        setAdminAssinantes((adminAssinantesJson.rows || []) as AdminAssinante[])
+                if (adminAssinantesHttpRes) {
+                    try {
+                        const adminAssinantesJson = await adminAssinantesHttpRes.json() as { ok: boolean; rows?: AdminAssinante[]; error?: string }
+                        if (!adminAssinantesHttpRes.ok || !adminAssinantesJson.ok) {
+                            console.error('Erro ao buscar boigordo_view_admin_assinantes via API:', adminAssinantesJson.error || adminAssinantesHttpRes.statusText)
+                        } else {
+                            setAdminAssinantes((adminAssinantesJson.rows || []) as AdminAssinante[])
+                        }
+                    } catch (err) {
+                        console.error('Falha ao decodificar resposta de admin-assinantes:', err)
                     }
-                } catch (err) {
-                    console.error('Falha ao decodificar resposta de admin-assinantes:', err)
+                } else {
+                    setAdminAssinantes([])
                 }
 
                 if (churnRes.error) {
@@ -347,26 +352,34 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setAlertasProEnvios((enviosRes.data || []) as AlertaProEnvio[])
                 }
 
-                try {
-                    const assinaturasJson = await assinaturasDetalhadasHttpRes.json() as { ok: boolean; rows?: AssinaturaDetalhada[]; error?: string }
-                    if (!assinaturasDetalhadasHttpRes.ok || !assinaturasJson.ok) {
-                        console.error('Erro ao buscar boigordo_assinaturas via API:', assinaturasJson.error || assinaturasDetalhadasHttpRes.statusText)
-                    } else {
-                        setAssinaturasDetalhadas((assinaturasJson.rows || []) as AssinaturaDetalhada[])
+                if (assinaturasDetalhadasHttpRes) {
+                    try {
+                        const assinaturasJson = await assinaturasDetalhadasHttpRes.json() as { ok: boolean; rows?: AssinaturaDetalhada[]; error?: string }
+                        if (!assinaturasDetalhadasHttpRes.ok || !assinaturasJson.ok) {
+                            console.error('Erro ao buscar boigordo_assinaturas via API:', assinaturasJson.error || assinaturasDetalhadasHttpRes.statusText)
+                        } else {
+                            setAssinaturasDetalhadas((assinaturasJson.rows || []) as AssinaturaDetalhada[])
+                        }
+                    } catch (err) {
+                        console.error('Falha ao decodificar resposta de assinaturas:', err)
                     }
-                } catch (err) {
-                    console.error('Falha ao decodificar resposta de assinaturas:', err)
+                } else {
+                    setAssinaturasDetalhadas([])
                 }
 
-                try {
-                    const billingJson = await billingEventosHttpRes.json() as { ok: boolean; rows?: BillingEvento[]; error?: string }
-                    if (!billingEventosHttpRes.ok || !billingJson.ok) {
-                        console.error('Erro ao buscar boigordo_billing_eventos via API:', billingJson.error || billingEventosHttpRes.statusText)
-                    } else {
-                        setBillingEventos((billingJson.rows || []) as BillingEvento[])
+                if (billingEventosHttpRes) {
+                    try {
+                        const billingJson = await billingEventosHttpRes.json() as { ok: boolean; rows?: BillingEvento[]; error?: string }
+                        if (!billingEventosHttpRes.ok || !billingJson.ok) {
+                            console.error('Erro ao buscar boigordo_billing_eventos via API:', billingJson.error || billingEventosHttpRes.statusText)
+                        } else {
+                            setBillingEventos((billingJson.rows || []) as BillingEvento[])
+                        }
+                    } catch (err) {
+                        console.error('Falha ao decodificar resposta de billing-eventos:', err)
                     }
-                } catch (err) {
-                    console.error('Falha ao decodificar resposta de billing-eventos:', err)
+                } else {
+                    setBillingEventos([])
                 }
             } catch (err) {
                 console.error('Erro na conexão com Supabase:', err)

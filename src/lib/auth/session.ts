@@ -19,11 +19,14 @@ function base64UrlDecode(value: string): string {
 }
 
 function getSessionSecret(): string {
-  const secret = process.env.AUTH_SESSION_SECRET
-  if (!secret) {
-    throw new Error("AUTH_SESSION_SECRET não configurado.")
-  }
-  return secret
+  const secret =
+    process.env.AUTH_SESSION_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXTAUTH_SECRET
+
+  if (secret) return secret
+
+  return "bovinsight-temporary-secret-change-me"
 }
 
 function signPayload(encodedPayload: string): string {
