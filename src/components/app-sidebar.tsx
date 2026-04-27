@@ -1,7 +1,8 @@
 "use client"
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 import {
     LayoutDashboard,
     ArrowLeftRight,
@@ -22,6 +23,7 @@ import {
     FileText,
     Webhook,
     Table2,
+    LogOut,
 } from 'lucide-react'
 import {
     Sidebar,
@@ -129,8 +131,21 @@ const adminMenuItems = [
 
 export function AppSidebar() {
     const pathname = usePathname()
+    const router = useRouter()
     const { setOpenMobile } = useSidebar()
     const resolvedMenuItems = menuItems
+    const [loggingOut, setLoggingOut] = useState(false)
+
+    async function handleLogout() {
+        setLoggingOut(true)
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' })
+        } finally {
+            router.push('/login')
+            router.refresh()
+            setLoggingOut(false)
+        }
+    }
 
     return (
         <Sidebar collapsible="icon" variant="sidebar">
@@ -224,6 +239,16 @@ export function AppSidebar() {
                                 <span className="text-xs text-muted-foreground">Plano Pro</span>
                             </div>
                             <ChevronUp className="ml-auto size-4" />
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            tooltip="Sair"
+                            onClick={handleLogout}
+                            disabled={loggingOut}
+                        >
+                            <LogOut />
+                            <span>{loggingOut ? 'Saindo...' : 'Sair'}</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
