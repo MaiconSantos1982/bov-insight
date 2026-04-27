@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { requireSuperAdmin } from "@/lib/auth/admin-guard"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -31,7 +32,10 @@ async function callGruposServer(url: URL, execToken: string) {
   return { response, payload }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const guard = requireSuperAdmin(request)
+  if (!guard.ok) return guard.response
+
   const traceId = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const gruposServerUrlRaw = process.env.GROUPS_SERVER_URL
   const execToken = process.env.GROUPS_EXEC_TOKEN || process.env.EXEC_TOKEN || ""

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { requireSuperAdmin } from "@/lib/auth/admin-guard"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -70,6 +71,9 @@ function getPreviousBusinessDayIsoInSaoPaulo(fromDate = new Date()): string {
 }
 
 export async function POST(request: Request) {
+  const guard = requireSuperAdmin(request)
+  if (!guard.ok) return guard.response
+
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
