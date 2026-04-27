@@ -14,17 +14,23 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as LoginBody
   } catch {
-    return NextResponse.json({ ok: false, error: "Payload inválido." }, { status: 400 })
+    const response = NextResponse.json({ ok: false, error: "Payload inválido." }, { status: 400 })
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    return response
   }
 
   const email = normalizeEmail(body.email)
   if (!email) {
-    return NextResponse.json({ ok: false, error: "Email inválido." }, { status: 400 })
+    const response = NextResponse.json({ ok: false, error: "Email inválido." }, { status: 400 })
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    return response
   }
 
   const access = await checkAccessByEmail(email)
   if (!access.ok) {
-    return NextResponse.json({ ok: false, error: access.error }, { status: 500 })
+    const response = NextResponse.json({ ok: false, error: access.error }, { status: 500 })
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    return response
   }
 
   console.info("[auth:login] tentativa", {
@@ -36,7 +42,7 @@ export async function POST(request: Request) {
   })
 
   if (!access.result.allowed || !access.result.usuario) {
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         ok: false,
         error: "Acesso não liberado para este email.",
@@ -45,6 +51,8 @@ export async function POST(request: Request) {
       },
       { status: 403 }
     )
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    return response
   }
 
   const session = createSessionToken({

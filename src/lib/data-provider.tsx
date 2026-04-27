@@ -46,6 +46,12 @@ export interface LatestPrice {
     valor_usd: number | null
 }
 
+export interface AuthUser {
+    usuario_id: string
+    email: string
+    nome: string | null
+}
+
 interface DataContextType {
     historicalData: HistoricoPreco[]
     cicloPecuario: CicloPecuarioClassificacao[]
@@ -64,6 +70,8 @@ interface DataContextType {
     alertasProEnvios: AlertaProEnvio[]
     assinaturasDetalhadas: AssinaturaDetalhada[]
     billingEventos: BillingEvento[]
+    authUser: AuthUser | null
+    isSuperAdmin: boolean
     latestPrices: Record<string, LatestPrice>
     previousPrices: Record<string, LatestPrice>
     getRelacaoTroca: (dateRange: DateRange | undefined, agrupamento: 'day' | 'week' | 'month') => RelacaoTrocaRow[]
@@ -96,6 +104,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [alertasProEnvios, setAlertasProEnvios] = useState<AlertaProEnvio[]>([])
     const [assinaturasDetalhadas, setAssinaturasDetalhadas] = useState<AssinaturaDetalhada[]>([])
     const [billingEventos, setBillingEventos] = useState<BillingEvento[]>([])
+    const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false)
     const [loading, setLoading] = useState(true)
     const [alertas, setAlertas] = useState<MockAlerta[]>(() => generateMockAlertas())
     const usuarios = useMemo(() => generateMockUsuarios(), [])
@@ -180,16 +190,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 let sessionUserId: string | null = null
+                let sessionUserEmail: string | null = null
                 try {
                     const authMeRes = await fetch('/api/auth/me', { cache: 'no-store' })
                     if (authMeRes.ok) {
-                        const authMeJson = await authMeRes.json() as { ok: boolean; user?: { usuario_id?: string } }
+                        const authMeJson = await authMeRes.json() as { ok: boolean; user?: { usuario_id?: string; email?: string; nome?: string | null } }
                         sessionUserId = authMeJson?.user?.usuario_id || null
+                        sessionUserEmail = authMeJson?.user?.email?.toLowerCase() || null
+                        if (sessionUserId && sessionUserEmail) {
+                            setAuthUser({
+                                usuario_id: sessionUserId,
+                                email: sessionUserEmail,
+                                nome: authMeJson?.user?.nome || null,
+                            })
+                        } else {
+                            setAuthUser(null)
+                        }
                     }
                 } catch (err) {
                     console.error('Falha ao identificar sessão atual:', err)
+                    setAuthUser(null)
                 }
-                const shouldLoadAdmin = Boolean(sessionUserId)
+                const isCurrentUserSuperAdmin = isSuperAdminEmail(sessionUserEmail)
+                setIsSuperAdmin(isCurrentUserSuperAdmin)
+                const shouldLoadAdmin = Boolean(sessionUserId && isCurrentUserSuperAdmin)
 
                 const [cicloRows, baseRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesHttpRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasHttpRes, billingEventosHttpRes] = await Promise.all([
                     fetchAllRows<CicloPecuarioClassificacao>('boigordo_view_ciclo_pecuario_classificacao', {
@@ -545,6 +569,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             alertasProEnvios,
             assinaturasDetalhadas,
             billingEventos,
+            authUser,
+            isSuperAdmin,
             latestPrices,
             previousPrices,
             getRelacaoTroca,
@@ -559,6 +585,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             {children}
         </DataContext.Provider>
     )
+}
+
+function isSuperAdminEmail(email: string | null): boolean {
+    if (!email) return false
+    const normalizedEmail = email.toLowerCase()
+    const fromEnv = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAILS || '')
+        .split(',')
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean)
+
+    return normalizedEmail === 'maiconsantos1982@gmail.com' || fromEnv.includes(normalizedEmail)
 }
 
 function avg(arr: number[]): number {

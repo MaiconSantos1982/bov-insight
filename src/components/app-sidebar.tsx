@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { useData } from '@/lib/data-provider'
 
 const menuItems = [
     {
@@ -134,7 +135,15 @@ export function AppSidebar() {
     const router = useRouter()
     const { setOpenMobile } = useSidebar()
     const resolvedMenuItems = menuItems
+    const { authUser, usuarioConfiguracao, isSuperAdmin } = useData()
     const [loggingOut, setLoggingOut] = useState(false)
+    const displayName =
+        authUser?.nome?.trim() ||
+        usuarioConfiguracao?.nome?.trim() ||
+        authUser?.email ||
+        'Usuário'
+    const planLabel = isSuperAdmin ? 'Super Admin' : 'Plano Assinante'
+    const initials = getInitials(displayName)
 
     async function handleLogout() {
         setLoggingOut(true)
@@ -206,7 +215,7 @@ export function AppSidebar() {
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
-                            {adminMenuItems.map((item) => (
+                            {isSuperAdmin && adminMenuItems.map((item) => (
                                 <SidebarMenuItem key={item.href}>
                                     <SidebarMenuButton
                                         asChild
@@ -231,12 +240,12 @@ export function AppSidebar() {
                         <SidebarMenuButton size="lg">
                             <Avatar className="size-8">
                                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                                    MS
+                                    {initials}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col gap-0.5 leading-none">
-                                <span className="text-sm font-medium">Maicon Santos</span>
-                                <span className="text-xs text-muted-foreground">Plano Pro</span>
+                                <span className="text-sm font-medium">{displayName}</span>
+                                <span className="text-xs text-muted-foreground">{planLabel}</span>
                             </div>
                             <ChevronUp className="ml-auto size-4" />
                         </SidebarMenuButton>
@@ -256,4 +265,14 @@ export function AppSidebar() {
             <SidebarRail />
         </Sidebar>
     )
+}
+
+function getInitials(name: string): string {
+    const cleaned = name.trim()
+    if (!cleaned) return 'US'
+    const parts = cleaned.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase()
+    }
+    return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase()
 }
