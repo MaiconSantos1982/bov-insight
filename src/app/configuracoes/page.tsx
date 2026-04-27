@@ -96,15 +96,7 @@ export default function ConfiguracoesPage() {
 
   const canEditPersonalData = process.env.NEXT_PUBLIC_CONFIG_ALLOW_ADMIN_EDIT === "true"
 
-  const [usuarioIdFallback, setUsuarioIdFallback] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const saved = window.localStorage.getItem("bovinsight_usuario_id")
-    if (saved) setUsuarioIdFallback(saved)
-  }, [])
-
-  const usuarioId = usuarioConfiguracao?.usuario_id || usuarioIdFallback || null
+  const usuarioId = usuarioConfiguracao?.usuario_id || null
 
   const assinaturaAtual = useMemo(() => {
     if (!usuarioId) return null
@@ -160,12 +152,6 @@ export default function ConfiguracoesPage() {
 
     setSalvando(true)
     try {
-      const resolvedUsuarioId = usuarioId || (typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`)
-      if (!usuarioId && typeof window !== "undefined") {
-        window.localStorage.setItem("bovinsight_usuario_id", resolvedUsuarioId)
-        setUsuarioIdFallback(resolvedUsuarioId)
-      }
-
       const nomeFinal = nome
       const emailFinal = canEditPersonalData ? (email || null) : (usuarioConfiguracao?.email || null)
       const telefoneFinal = telefoneWhatsapp
@@ -174,7 +160,6 @@ export default function ConfiguracoesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          usuario_id: resolvedUsuarioId,
           nome: nomeFinal,
           email: emailFinal,
           telefone_whatsapp: telefoneFinal,

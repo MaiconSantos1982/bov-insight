@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { getAuthenticatedSession } from "@/lib/auth/request-auth"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 type CreateBody = {
-  usuario_id: string
   produto: "boi_gordo" | "bezerro" | "milho" | "soja"
   condicao: "acima_de" | "abaixo_de" | "variacao_pct"
   valor_gatilho: number
@@ -39,6 +39,8 @@ function getAdminClient() {
 export async function POST(request: Request) {
   const { client, error } = getAdminClient()
   if (!client) return NextResponse.json({ ok: false, error }, { status: 500 })
+  const session = getAuthenticatedSession(request)
+  if (!session) return NextResponse.json({ ok: false, error: "Não autenticado." }, { status: 401 })
 
   let body: CreateBody
   try {
@@ -47,14 +49,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Payload inválido." }, { status: 400 })
   }
 
-  if (!body.usuario_id || !body.produto || !body.condicao || typeof body.valor_gatilho !== "number") {
+  if (!body.produto || !body.condicao || typeof body.valor_gatilho !== "number") {
     return NextResponse.json({ ok: false, error: "Campos obrigatórios inválidos." }, { status: 400 })
   }
 
   const { data, error: insertError } = await client
     .from("boigordo_alertas_pro_regras")
     .insert({
-      usuario_id: body.usuario_id,
+      usuario_id: session.userId,
       produto: body.produto,
       condicao: body.condicao,
       valor_gatilho: body.valor_gatilho,
@@ -74,18 +76,13 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const { client, error } = getAdminClient()
   if (!client) return NextResponse.json({ ok: false, error }, { status: 500 })
-
-  const { searchParams } = new URL(request.url)
-  const usuarioId = searchParams.get("usuario_id")
-
-  if (!usuarioId) {
-    return NextResponse.json({ ok: false, error: "usuario_id é obrigatório." }, { status: 400 })
-  }
+  const session = getAuthenticatedSession(request)
+  if (!session) return NextResponse.json({ ok: false, error: "Não autenticado." }, { status: 401 })
 
   const { data, error: fetchError } = await client
     .from("boigordo_alertas_pro_regras")
     .select("*")
-    .eq("usuario_id", usuarioId)
+    .eq("usuario_id", session.userId)
     .order("created_at", { ascending: false })
 
   if (fetchError) {
@@ -98,6 +95,8 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const { client, error } = getAdminClient()
   if (!client) return NextResponse.json({ ok: false, error }, { status: 500 })
+  const session = getAuthenticatedSession(request)
+  if (!session) return NextResponse.json({ ok: false, error: "Não autenticado." }, { status: 401 })
 
   let body: UpdateBody
   try {
@@ -114,6 +113,7 @@ export async function PATCH(request: Request) {
     .from("boigordo_alertas_pro_regras")
     .update({ ativo: body.ativo })
     .eq("id", body.id)
+    .eq("usuario_id", session.userId)
 
   if (updateError) {
     return NextResponse.json({ ok: false, error: updateError.message }, { status: 500 })
@@ -125,6 +125,8 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const { client, error } = getAdminClient()
   if (!client) return NextResponse.json({ ok: false, error }, { status: 500 })
+  const session = getAuthenticatedSession(request)
+  if (!session) return NextResponse.json({ ok: false, error: "Não autenticado." }, { status: 401 })
 
   let body: DeleteBody
   try {
@@ -141,6 +143,7 @@ export async function DELETE(request: Request) {
     .from("boigordo_alertas_pro_regras")
     .delete()
     .eq("id", body.id)
+    .eq("usuario_id", session.userId)
 
   if (deleteError) {
     return NextResponse.json({ ok: false, error: deleteError.message }, { status: 500 })

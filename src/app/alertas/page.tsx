@@ -33,17 +33,7 @@ function AlertasPageContent() {
   const initialCondicao: "acima_de" | "abaixo_de" = condicaoParam === "abaixo_de" ? "abaixo_de" : "acima_de"
   const initialValor = valorParam && !isNaN(Number(valorParam)) ? Number(valorParam).toFixed(2) : ""
 
-  const [userIdFallback, setUserIdFallback] = useState<string | null>(null)
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const saved = window.localStorage.getItem("bovinsight_usuario_id")
-    if (saved) setUserIdFallback(saved)
-  }, [])
-
-  const userId = useMemo(
-    () => usuarioConfiguracao?.usuario_id || userIdFallback || null,
-    [usuarioConfiguracao, userIdFallback]
-  )
+  const userId = useMemo(() => usuarioConfiguracao?.usuario_id || null, [usuarioConfiguracao])
 
   const [regras, setRegras] = useState<AlertaProRegra[]>([])
   const [dialogOpen, setDialogOpen] = useState(auto)
@@ -66,7 +56,7 @@ function AlertasPageContent() {
       }
       setLoadingRegras(true)
       try {
-        const response = await fetch(`/api/alertas-pro/regras?usuario_id=${encodeURIComponent(userId)}`, {
+        const response = await fetch(`/api/alertas-pro/regras`, {
           cache: "no-store",
         })
         const payload = await response.json()
@@ -133,7 +123,6 @@ function AlertasPageContent() {
 
     setSaving(true)
     const payload = {
-      usuario_id: userId,
       produto: newProduto,
       condicao: newCondicao,
       valor_gatilho: Number(newValor),

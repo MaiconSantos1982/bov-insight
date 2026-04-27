@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { getAuthenticatedSession } from "@/lib/auth/request-auth"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 type SaveConfigBody = {
-  usuario_id: string
+  usuario_id?: string
   nome: string
   email: string | null
   telefone_whatsapp: string
@@ -36,6 +37,11 @@ function normalizePhoneE164Br(value: string | null | undefined): string | null {
 }
 
 export async function POST(request: Request) {
+  const session = getAuthenticatedSession(request)
+  if (!session) {
+    return NextResponse.json({ ok: false, error: "Não autenticado." }, { status: 401 })
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -53,9 +59,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Payload inválido." }, { status: 400 })
   }
 
-  if (!body.usuario_id || !body.nome || !body.telefone_whatsapp) {
+  if (!body.nome || !body.telefone_whatsapp) {
     return NextResponse.json(
-      { ok: false, error: "usuario_id, nome e telefone_whatsapp são obrigatórios." },
+      { ok: false, error: "nome e telefone_whatsapp são obrigatórios." },
       { status: 400 }
     )
   }
@@ -84,9 +90,9 @@ export async function POST(request: Request) {
     .from("boigordo_usuarios_perfil")
     .upsert(
       {
-        usuario_id: body.usuario_id,
+        usuario_id: session.userId,
         nome: body.nome,
-        email: body.email,
+        email: body.email || session.email,
         telefone_whatsapp: telefoneWhatsappE164,
         papeis_mercado: body.papeis_mercado || [],
         etapas_operacao: body.etapas_operacao || [],
@@ -106,7 +112,7 @@ export async function POST(request: Request) {
     .upsert(
       {
         id: body.destino_id || undefined,
-        usuario_id: body.usuario_id,
+        usuario_id: session.userId,
         telefone_destino: telefoneDestinoE164,
         ativo: true,
         frequencia: "IMEDIATO",

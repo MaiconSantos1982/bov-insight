@@ -179,6 +179,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setHistoricalData(allData)
                 }
 
+                let sessionUserId: string | null = null
+                try {
+                    const authMeRes = await fetch('/api/auth/me', { cache: 'no-store' })
+                    if (authMeRes.ok) {
+                        const authMeJson = await authMeRes.json() as { ok: boolean; user?: { usuario_id?: string } }
+                        sessionUserId = authMeJson?.user?.usuario_id || null
+                    }
+                } catch (err) {
+                    console.error('Falha ao identificar sessão atual:', err)
+                }
+
                 const [cicloRows, baseRows, exportRows, alertasRes, usuarioConfigRes, assinaturasRes, destinosRes, regrasRes, pagamentosRes, gruposRes, adminAssinantesHttpRes, churnRes, logsRes, enviosRes, assinaturasDetalhadasHttpRes, billingEventosHttpRes] = await Promise.all([
                     fetchAllRows<CicloPecuarioClassificacao>('boigordo_view_ciclo_pecuario_classificacao', {
                         orderBy: 'periodo',
@@ -265,12 +276,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     console.error('Erro ao buscar boigordo_view_usuario_configuracoes:', usuarioConfigRes.error)
                 } else {
                     const rows = (usuarioConfigRes.data || []) as UsuarioConfiguracao[]
-                    const persistedUserId = typeof window !== "undefined"
-                        ? window.localStorage.getItem("bovinsight_usuario_id")
-                        : null
-                    const row = (persistedUserId
-                        ? rows.find((item) => item.usuario_id === persistedUserId)
-                        : undefined) || rows[0]
+                    const row = sessionUserId
+                        ? rows.find((item) => item.usuario_id === sessionUserId)
+                        : undefined
                     if (row?.usuario_id && typeof window !== "undefined") {
                         window.localStorage.setItem("bovinsight_usuario_id", row.usuario_id)
                     }
@@ -286,19 +294,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 if (destinosRes.error) {
                     console.error('Erro ao buscar boigordo_alertas_pro_destinos:', destinosRes.error)
                 } else {
-                    setAlertasProDestinos((destinosRes.data || []) as AlertaProDestino[])
+                    const rows = (destinosRes.data || []) as AlertaProDestino[]
+                    setAlertasProDestinos(sessionUserId ? rows.filter((item) => item.usuario_id === sessionUserId) : [])
                 }
 
                 if (regrasRes.error) {
                     console.error('Erro ao buscar boigordo_alertas_pro_regras:', regrasRes.error)
                 } else {
-                    setAlertasProRegras((regrasRes.data || []) as AlertaProRegra[])
+                    const rows = (regrasRes.data || []) as AlertaProRegra[]
+                    setAlertasProRegras(sessionUserId ? rows.filter((item) => item.usuario_id === sessionUserId) : [])
                 }
 
                 if (pagamentosRes.error) {
                     console.error('Erro ao buscar boigordo_pagamentos_historico:', pagamentosRes.error)
                 } else {
-                    setPagamentosHistorico((pagamentosRes.data || []) as PagamentoHistorico[])
+                    const rows = (pagamentosRes.data || []) as PagamentoHistorico[]
+                    setPagamentosHistorico(sessionUserId ? rows.filter((item) => item.usuario_id === sessionUserId) : [])
                 }
 
                 if (gruposRes.error) {
