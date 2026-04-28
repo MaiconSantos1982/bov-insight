@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Legend, Tooltip, ResponsiveContainer } from "recharts"
 import Link from "next/link"
+import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -43,8 +44,42 @@ const PHASE_META = {
 
 const PHASE_ORDER: Array<keyof typeof PHASE_META> = ["RETENCAO", "ESTABILIDADE", "LIQUIDACAO"]
 
+const MONTH_NAMES = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+]
+
+function buildYearSeries(
+  monthlyAverages: Map<string, number>,
+  startYear: number,
+  endYear: number
+) {
+  const years = []
+  for (let y = startYear; y <= endYear; y += 1) years.push(y)
+
+  return MONTH_NAMES.map((monthName, idx) => {
+    const month = String(idx + 1).padStart(2, "0")
+    const row: Record<string, string | number | null> = { mes: monthName }
+    for (const year of years) {
+      const value = monthlyAverages.get(`${year}-${month}`)
+      row[String(year)] = value ?? null
+    }
+    return row
+  })
+}
+
 export default function CicloPecuarioPage() {
-  const { cicloPecuario, globalDateRange } = useData()
+  const { cicloPecuario, globalDateRange, isSuperAdmin, historicalData } = useData()
   const regioes = useMemo(() => [...new Set(cicloPecuario.map((r) => r.regiao))], [cicloPecuario])
   const [regiao, setRegiao] = useState<string>(regioes[0] || "BRASIL")
 
@@ -69,6 +104,51 @@ export default function CicloPecuarioPage() {
   const phase = (latest?.fase_ciclo || "ESTABILIDADE") as keyof typeof PHASE_META
   const phaseIndex = PHASE_ORDER.indexOf(phase)
   const pointerDeg = phaseIndex === 0 ? -120 : phaseIndex === 1 ? 0 : 120
+
+  const monthlyAverages = useMemo(() => {
+    const boiRows = historicalData.filter((row) => row.produto === "boi_gordo")
+    const buckets = new Map<string, number[]>()
+
+    for (const row of boiRows) {
+      const d = new Date(`${row.data}T12:00:00`)
+      if (Number.isNaN(d.getTime())) continue
+      const year = d.getFullYear()
+      const month = d.getMonth() + 1
+      const key = `${year}-${String(month).padStart(2, "0")}`
+      const list = buckets.get(key) || []
+      list.push(row.valor_brl)
+      buckets.set(key, list)
+    }
+
+    const out = new Map<string, number>()
+    for (const [key, values] of buckets.entries()) {
+      const avg = values.reduce((acc, val) => acc + val, 0) / values.length
+      out.set(key, avg)
+    }
+    return out
+  }, [historicalData])
+
+  const chartData2015_2024 = useMemo(
+    () => buildYearSeries(monthlyAverages, 2015, 2024),
+    [monthlyAverages]
+  )
+  const chartData2020_2024 = useMemo(
+    () => buildYearSeries(monthlyAverages, 2020, 2024),
+    [monthlyAverages]
+  )
+
+  const lineColors: Record<string, string> = {
+    "2015": "#f59e0b",
+    "2016": "#f97316",
+    "2017": "#ef4444",
+    "2018": "#ec4899",
+    "2019": "#38bdf8",
+    "2020": "#14b8a6",
+    "2021": "#22c55e",
+    "2022": "#84cc16",
+    "2023": "#eab308",
+    "2024": "#f97316",
+  }
 
   return (
     <>
@@ -118,6 +198,16 @@ export default function CicloPecuarioPage() {
                 </div>
 
                 <div className="flex-1 space-y-3">
+                  <div className="overflow-hidden rounded-lg border border-border/60">
+                    <Image
+                      src="https://ztlddoutgextdmyiwoxl.supabase.co/storage/v1/object/sign/inteligencia_pecuaria/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2016_01_31.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9jNDA2OTRjYy04ZjYzLTQxODMtOTQxZS0wMGVkZDJkMjg0MTgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbnRlbGlnZW5jaWFfcGVjdWFyaWEvQ2hhdEdQVCBJbWFnZSAyOCBkZSBhYnIuIGRlIDIwMjYsIDE2XzAxXzMxLndlYnAiLCJpYXQiOjE3Nzc0MDMwNDksImV4cCI6NDkzMTAwMzA0OX0.PaL6SUp-APAPOufJbzLdhDgFumFisxtq6w0afxh-fRY"
+                      alt="Fases do ciclo pecuário"
+                      width={1280}
+                      height={1280}
+                      className="h-auto w-full object-cover"
+                      unoptimized
+                    />
+                  </div>
                   <Badge style={{ backgroundColor: `${PHASE_META[phase].color}1A`, color: PHASE_META[phase].color }}>
                     {PHASE_META[phase].label}
                   </Badge>
@@ -149,9 +239,11 @@ export default function CicloPecuarioPage() {
                 {deltaTaxa !== null ? `${deltaTaxa >= 0 ? "+" : ""}${deltaTaxa.toFixed(2)} p.p.` : "—"}
               </p>
               <p className="text-sm text-muted-foreground">Ajuste de referência para gatilho automático conforme tendência atual do ciclo.</p>
-              <Button asChild variant="outline" size="sm" className="w-full">
-                <Link href={`/alertas?auto=1&produto=boi_gordo&condicao=${sugestaoCondicao}`}>Ir para Alertas Pro</Link>
-              </Button>
+              {isSuperAdmin && (
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link href={`/alertas?auto=1&produto=boi_gordo&condicao=${sugestaoCondicao}`}>Ir para Alertas Pro</Link>
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -182,6 +274,97 @@ export default function CicloPecuarioPage() {
                 <Line type="monotone" dataKey="media_movel_12m" stroke="var(--chart-2)" strokeWidth={2} strokeDasharray="6 4" dot={false} />
               </LineChart>
             </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Como o Ciclo Impacta o Preço da Arroba</CardTitle>
+            <CardDescription>
+              O preço do boi gordo é balizador das demais fases da pecuária e responde à dinâmica de oferta e demanda.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 text-sm text-muted-foreground leading-relaxed">
+            <p>
+              A decisão dos produtores de aumentar ou reduzir o rebanho impacta diretamente o preço da arroba.
+              O aumento do abate de fêmeas eleva a oferta de carne no curto prazo e tende a pressionar o preço do boi.
+              A retenção de matrizes reduz oferta imediata e tende a sustentar alta da arroba.
+            </p>
+            <div className="overflow-hidden rounded-xl border border-border/60">
+              <Image
+                src="https://ztlddoutgextdmyiwoxl.supabase.co/storage/v1/object/sign/inteligencia_pecuaria/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2016_01_31.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9jNDA2OTRjYy04ZjYzLTQxODMtOTQxZS0wMGVkZDJkMjg0MTgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbnRlbGlnZW5jaWFfcGVjdWFyaWEvQ2hhdEdQVCBJbWFnZSAyOCBkZSBhYnIuIGRlIDIwMjYsIDE2XzAxXzMxLndlYnAiLCJpYXQiOjE3Nzc0MDMwNDksImV4cCI6NDkzMTAwMzA0OX0.PaL6SUp-APAPOufJbzLdhDgFumFisxtq6w0afxh-fRY"
+                alt="Ciclo pecuário e dinâmica de oferta e demanda"
+                width={1280}
+                height={1280}
+                className="h-auto w-full object-cover"
+                unoptimized
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3"><span className="font-semibold text-foreground">1.</span> Baixa oferta de bezerros eleva o preço do bezerro.</div>
+              <div className="rounded-lg border p-3"><span className="font-semibold text-foreground">2.</span> Retenção de matrizes reduz oferta de carne e tende a elevar a arroba.</div>
+              <div className="rounded-lg border p-3"><span className="font-semibold text-foreground">3.</span> Maior retenção aumenta a produção de bezerros ao longo do tempo.</div>
+              <div className="rounded-lg border p-3"><span className="font-semibold text-foreground">4.</span> Com queda do bezerro, aumenta o abate de fêmeas e a arroba tende a cair.</div>
+              <div className="rounded-lg border p-3 md:col-span-2"><span className="font-semibold text-foreground">5.</span> Redução de matrizes diminui a produção futura de bezerros e reinicia o ciclo.</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Gráfico 1 · Variação mensal média da arroba (2015–2024)</CardTitle>
+            <CardDescription>Médias mensais CEPEA (sem correção inflacionária), por ano.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[430px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData2015_2024} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Legend />
+                {Array.from({ length: 10 }, (_, i) => 2015 + i).map((year) => (
+                  <Line
+                    key={String(year)}
+                    type="monotone"
+                    dataKey={String(year)}
+                    stroke={lineColors[String(year)] || "#64748b"}
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Gráfico 2 · Variação mensal média da arroba (2020–2024)</CardTitle>
+            <CardDescription>Zoom do ciclo mais recente para leitura tática.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[430px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData2020_2024} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Legend />
+                {Array.from({ length: 5 }, (_, i) => 2020 + i).map((year) => (
+                  <Line
+                    key={String(year)}
+                    type="monotone"
+                    dataKey={String(year)}
+                    stroke={lineColors[String(year)] || "#64748b"}
+                    strokeWidth={2.5}
+                    dot={false}
+                    connectNulls={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
