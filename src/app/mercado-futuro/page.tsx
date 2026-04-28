@@ -76,7 +76,7 @@ function parseMercadoFuturoRows(doc: Document): FuturoRow[] {
     if (!tds.length) continue
 
     const data = tds.find((cell) => /^\d{2}\/\d{2}\/\d{4}$/.test(cell)) || ""
-    const valorCell = tds.find((cell) => /R\$\s*[-\d.,]+/.test(cell)) || ""
+    const valorCell = tds.find((cell) => /R\$\s*[-\d.,]+/.test(cell) || /^-?\d{1,3}(?:\.\d{3})*(?:,\d+)?$/.test(cell)) || ""
     const produtoCell = tds.find((cell) => cell && cell !== data && cell !== valorCell) || ""
 
     if (!data || !valorCell || !produtoCell) continue
@@ -109,7 +109,7 @@ export default function MercadoFuturoPage() {
   const [widgetRows, setWidgetRows] = useState<FuturoRow[]>([])
 
   const rowsFromHistorico = useMemo<FuturoRow[]>(() => {
-    const futuros = historicalData.filter((row) => /^bgi/i.test(row.produto))
+    const futuros = historicalData.filter((row) => /bgi/i.test(row.produto))
     if (!futuros.length) return []
 
     const latestByProduto = new Map<string, typeof futuros[number]>()
@@ -166,10 +166,19 @@ export default function MercadoFuturoPage() {
 
     setLoading(true)
     mountWidget()
-    window.setTimeout(() => {
-      capture()
+    void (async () => {
+      for (let attempt = 0; attempt < 7; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 800))
+        const doc = iframeRef.current?.contentDocument
+        if (!doc) continue
+        const parsed = parseMercadoFuturoRows(doc)
+        if (parsed.length > 0) {
+          setWidgetRows(parsed)
+          break
+        }
+      }
       setLoading(false)
-    }, 1800)
+    })()
   }, [rowsFromHistorico])
 
   useEffect(() => {
@@ -214,6 +223,11 @@ export default function MercadoFuturoPage() {
                   </div>
                 </div>
               ))}
+              {!rows.length && (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  Sem cotações no período. Clique em <strong>Atualizar Curva</strong> para recarregar.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -230,6 +244,7 @@ export default function MercadoFuturoPage() {
                   <p className="font-semibold tabular-nums">R$ {formatBrl(row.valor)}</p>
                 </div>
               ))}
+              {!topHigh.length && <p className="text-sm text-muted-foreground">Sem dados para exibir.</p>}
             </CardContent>
           </Card>
 
@@ -244,6 +259,7 @@ export default function MercadoFuturoPage() {
                   <p className="font-semibold tabular-nums">R$ {formatBrl(row.valor)}</p>
                 </div>
               ))}
+              {!topLow.length && <p className="text-sm text-muted-foreground">Sem dados para exibir.</p>}
             </CardContent>
           </Card>
         </div>
