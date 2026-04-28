@@ -51,8 +51,7 @@ function LoginPageContent() {
       }
 
       toast.success("Acesso liberado")
-      router.replace(next)
-      router.refresh()
+      window.location.href = next
     } catch {
       toast.error("Falha no login", { description: "Erro de rede ao autenticar." })
     } finally {

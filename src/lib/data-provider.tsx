@@ -119,6 +119,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         async function fetchData() {
             setLoading(true)
+            setUsuarioConfiguracao(null)
+            setAlertasProDestinos([])
+            setAlertasProRegras([])
+            setPagamentosHistorico([])
+            setAuthUser(null)
+            setIsSuperAdmin(false)
             try {
                 async function fetchAllRows<T>(
                     table: string,
@@ -304,9 +310,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     const row = sessionUserId
                         ? rows.find((item) => item.usuario_id === sessionUserId)
                         : undefined
-                    if (row?.usuario_id && typeof window !== "undefined") {
-                        window.localStorage.setItem("bovinsight_usuario_id", row.usuario_id)
-                    }
                     setUsuarioConfiguracao(row || null)
                 }
 

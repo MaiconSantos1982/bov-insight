@@ -156,12 +156,12 @@ function formatarDataReferenciaAnterior(dataExtracaoIso: string): string {
 }
 
 function formatarDataReferenciaIso(dataIso: string): string {
-    return new Date(`${dataIso}T00:00:00Z`).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        timeZone: "America/Sao_Paulo",
-    });
+    const match = dataIso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+        return dataIso;
+    }
+    const [, yyyy, mm, dd] = match;
+    return `${dd}/${mm}/${yyyy}`;
 }
 
 function anexarDataReferencia(
