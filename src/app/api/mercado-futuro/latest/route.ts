@@ -136,18 +136,3 @@ export async function GET() {
     { status: 404 }
   )
 }
-    return NextResponse.json({
-      ok: true,
-      dataExtracao: ultimoResultado?.data_extracao || null,
-      rows,
-    })
-  } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    )
-  }
-}
