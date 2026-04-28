@@ -170,7 +170,7 @@ export default function CicloPecuarioPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="relative overflow-hidden rounded-lg border border-border/60">
+                <div className="relative mx-auto w-full md:w-[70%] xl:w-[60%] overflow-hidden rounded-lg border border-border/60">
                   <div className="absolute left-3 top-3 z-10">
                     <Badge style={{ backgroundColor: `${PHASE_META[phase].color}E6`, color: "#fff" }}>
                       Fase atual: {PHASE_META[phase].label}
