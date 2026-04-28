@@ -58,6 +58,16 @@ export async function GET() {
   const execToken = process.env.GROUPS_EXEC_TOKEN || process.env.EXEC_TOKEN || ""
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const debug: Record<string, unknown> = {
+    groupsServerConfigured: Boolean(gruposServerUrlRaw),
+    execTokenConfigured: Boolean(execToken),
+    supabaseConfigured: Boolean(supabaseUrl && serviceRoleKey),
+    groupsServerStatus: null,
+    groupsRowsFound: 0,
+    supabaseRowsScanned: 0,
+    supabaseRowsFound: 0,
+    supabaseError: null,
+  }
 
   // 1) Prioridade máxima: groups-server (mesma fonte do WhatsApp)
   if (gruposServerUrlRaw) {
@@ -71,6 +81,7 @@ export async function GET() {
         headers,
         cache: "no-store",
       })
+      debug.groupsServerStatus = response.status
 
       if (response.ok) {
         const payload = (await response.json()) as GruposStatusPayload
@@ -78,6 +89,7 @@ export async function GET() {
         const rows = Array.isArray(ultimoResultado?.datagro_mercado_futuro)
           ? ultimoResultado.datagro_mercado_futuro
           : []
+        debug.groupsRowsFound = rows.length
 
         if (rows.length > 0) {
           return NextResponse.json({
@@ -108,9 +120,11 @@ export async function GET() {
 
       if (!error) {
         const rowsData = (data || []) as ExecucaoLogRow[]
+        debug.supabaseRowsScanned = rowsData.length
         for (const row of rowsData) {
           const parsed = tryExtractRowsFromContext(row.contexto)
           if (parsed.length > 0) {
+            debug.supabaseRowsFound = parsed.length
             return NextResponse.json({
               ok: true,
               source: "supabase-execucoes-logs",
@@ -119,6 +133,8 @@ export async function GET() {
             })
           }
         }
+      } else {
+        debug.supabaseError = error.message
       }
     } catch {
       // segue para retorno vazio
@@ -132,6 +148,7 @@ export async function GET() {
       error:
         "Sem dados de mercado futuro disponíveis em groups-server ou logs de execução no Supabase.",
       rows: [],
+      debug,
     },
     { status: 404 }
   )
