@@ -170,23 +170,17 @@ export default function CicloPecuarioPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="relative mx-auto w-full md:w-[70%] xl:w-[60%] overflow-hidden rounded-lg border border-border/60">
-                  <div className="absolute left-3 top-3 z-10">
-                    <Badge style={{ backgroundColor: `${PHASE_META[phase].color}E6`, color: "#fff" }}>
-                      Fase atual: {PHASE_META[phase].label}
-                    </Badge>
-                  </div>
+                <div className="space-y-2">
+                  <p className="text-base font-semibold" style={{ color: PHASE_META[phase].color }}>
+                    Fase do ciclo: {PHASE_META[phase].label}
+                  </p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {PHASE_META[phase].description}
+                  </p>
+                </div>
+                <div className="relative mx-auto w-full md:w-[70%] xl:w-[60%] overflow-hidden rounded-lg">
                   <div className="absolute right-3 top-3 z-10 rounded-md bg-background/80 px-2 py-1 text-xs font-semibold">
                     {formatLocationLabel(regiao)}
-                  </div>
-                  <div
-                    className="pointer-events-none absolute inset-0 z-[1]"
-                    style={{
-                      boxShadow: `inset 0 0 0 3px ${PHASE_META[phase].color}66`,
-                    }}
-                  />
-                  <div className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-md bg-background/80 px-3 py-1 text-xs">
-                    Destaque visual do ciclo pecuário em andamento
                   </div>
                   <div className="w-full">
                     <Image
@@ -200,12 +194,6 @@ export default function CicloPecuarioPage() {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <Badge style={{ backgroundColor: `${PHASE_META[phase].color}1A`, color: PHASE_META[phase].color }}>
-                    {PHASE_META[phase].label}
-                  </Badge>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {PHASE_META[phase].description}
-                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <div className="rounded-lg border p-3">
                       <p className="text-xs text-muted-foreground uppercase tracking-wider">Taxa de fêmeas</p>
