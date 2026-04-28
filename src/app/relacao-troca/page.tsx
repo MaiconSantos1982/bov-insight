@@ -108,6 +108,27 @@ export default function RelacaoTrocaPage() {
             <div className="flex flex-col gap-6 p-4 sm:p-6">
                 {/* KPI Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card className="card-hover cursor-pointer border-primary/30 bg-primary/5" onClick={() => setComparacao('bezerro')}>
+                        <CardContent className="pt-5 pb-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Boi / Bezerro</p>
+                                    <p className="text-3xl font-bold mt-1 tabular-nums text-primary">
+                                        {currentRelacaoBoiBezerro1ParaX !== null ? currentRelacaoBoiBezerro1ParaX.toFixed(2) : '—'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        bezerros por 1 boi de 20 arrobas
+                                    </p>
+                                    <p className="text-sm mt-2 font-medium tabular-nums">
+                                        {chartData.length ? (chartData[chartData.length - 1]?.relacao_boi_bezerro?.toFixed(1) || '—') : '—'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">arrobas para comprar 1 bezerro</p>
+                                </div>
+                                <div className={`size-3 rounded-full ${comparacao === 'bezerro' ? 'bg-chart-2 animate-pulse-dot' : 'bg-muted'}`} />
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     <Card className="card-hover cursor-pointer" onClick={() => setComparacao('milho')}>
                         <CardContent className="pt-5 pb-4">
                             <div className="flex items-center justify-between">
@@ -138,25 +159,6 @@ export default function RelacaoTrocaPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="card-hover cursor-pointer" onClick={() => setComparacao('bezerro')}>
-                        <CardContent className="pt-5 pb-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Boi / Bezerro</p>
-                                    <p className="text-2xl font-bold mt-1 tabular-nums">
-                                        {chartData.length ? (chartData[chartData.length - 1]?.relacao_boi_bezerro?.toFixed(1) || '—') : '—'}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">arrobas para comprar 1 bezerro</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        {currentRelacaoBoiBezerro1ParaX !== null
-                                            ? `Relação 1 boi (20@) : ${currentRelacaoBoiBezerro1ParaX.toFixed(2)} bezerros`
-                                            : "Relação 1 boi (20@): —"}
-                                    </p>
-                                </div>
-                                <div className={`size-3 rounded-full ${comparacao === 'bezerro' ? 'bg-chart-2 animate-pulse-dot' : 'bg-muted'}`} />
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
 
                 {/* Main Dual-Axis Chart */}

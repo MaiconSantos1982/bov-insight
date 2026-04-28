@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { Beef, Wheat, Bean, Activity, ArrowUpRight, ArrowDownRight, ShieldAlert, Gauge, Globe2, GitBranch } from "lucide-react"
+import { Beef, Wheat, Bean, Activity, ArrowUpRight, ArrowDownRight, Globe2, GitBranch } from "lucide-react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Line } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -45,17 +45,13 @@ export default function DashboardPage() {
         alertas,
         cicloPecuario,
         exportacaoResumo,
-        baseRegionalStats,
-        alertasAnaliticos,
     } = useData()
-    const showAnalyticsRiskCards = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_RISK_CARDS !== "false"
 
     const chartData = useMemo(() => {
         return getRelacaoTroca(globalDateRange, 'day')
     }, [getRelacaoTroca, globalDateRange])
 
     const activeAlerts = alertas.filter(a => a.ativo).length
-    const activeAnalyticAlerts = alertasAnaliticos.filter(a => a.status === "ABERTO").length
 
     const latestCicloBrasil = useMemo(
         () => [...cicloPecuario]
@@ -65,11 +61,6 @@ export default function DashboardPage() {
     )
 
     const latestExportacao = exportacaoResumo[exportacaoResumo.length - 1]
-
-    const latestBase = useMemo(
-        () => [...baseRegionalStats].sort((a, b) => b.data.localeCompare(a.data))[0],
-        [baseRegionalStats]
-    )
 
     const widgetItems: StockItem[] = useMemo(() => {
         return Object.entries(PRODUTOS).map(([key, info]) => {
@@ -109,78 +100,41 @@ export default function DashboardPage() {
             />
 
             <div className="flex flex-col gap-6 p-4 sm:p-6">
-                {/* Analytics Risk Cards (feature flag) */}
-                {showAnalyticsRiskCards && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                        <Card className="card-hover">
-                            <CardContent className="pt-5 pb-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Risco Analítico</p>
-                                        <p className="text-2xl font-bold mt-1 tabular-nums">{activeAnalyticAlerts}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Alertas analíticos abertos</p>
-                                    </div>
-                                    <ShieldAlert className="size-5 text-primary" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Card className="card-hover">
+                        <CardContent className="pt-5 pb-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Ciclo Pecuário</p>
+                                    <p className="text-2xl font-bold mt-1">{latestCicloBrasil?.fase_ciclo === "LIQUIDACAO" ? "Liquidação" : latestCicloBrasil?.fase_ciclo === "RETENCAO" ? "Retenção" : latestCicloBrasil?.fase_ciclo === "ESTABILIDADE" ? "Estabilidade" : "—"}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {latestCicloBrasil ? `${latestCicloBrasil.taxa_femeas_pct.toFixed(2)}% de fêmeas` : "Sem dados"}
+                                    </p>
                                 </div>
-                                <div className="mt-3">
-                                    <Link href="/alertas-analiticos" className="text-xs text-primary hover:underline">Ver alertas</Link>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                <GitBranch className="size-5 text-primary" />
+                            </div>
+                            <div className="mt-3">
+                                <Link href="/ciclo-pecuario" className="text-xs text-primary hover:underline">Abrir módulo</Link>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                        <Card className="card-hover">
-                            <CardContent className="pt-5 pb-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Ciclo Pecuário</p>
-                                        <p className="text-2xl font-bold mt-1">{latestCicloBrasil?.fase_ciclo === "LIQUIDACAO" ? "Liquidação" : latestCicloBrasil?.fase_ciclo === "RETENCAO" ? "Retenção" : latestCicloBrasil?.fase_ciclo === "ESTABILIDADE" ? "Estabilidade" : "—"}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {latestCicloBrasil ? `${latestCicloBrasil.taxa_femeas_pct.toFixed(2)}% de fêmeas` : "Sem dados"}
-                                        </p>
-                                    </div>
-                                    <GitBranch className="size-5 text-primary" />
+                    <Card className="card-hover">
+                        <CardContent className="pt-5 pb-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Exportações</p>
+                                    <p className="text-2xl font-bold mt-1 tabular-nums">{latestExportacao ? `${latestExportacao.dependencia_china_pct.toFixed(1)}%` : "—"}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Dependência China</p>
                                 </div>
-                                <div className="mt-3">
-                                    <Link href="/ciclo-pecuario" className="text-xs text-primary hover:underline">Abrir módulo</Link>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="card-hover">
-                            <CardContent className="pt-5 pb-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Base Regional</p>
-                                        <p className="text-2xl font-bold mt-1">{latestBase?.situacao_base?.replace("BASE_", "Base ") || "—"}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {latestBase ? `${latestBase.praca_local}: ${latestBase.situacao_base.replace("BASE_", "Base ")}` : "Sem base regional"}
-                                        </p>
-                                    </div>
-                                    <Gauge className="size-5 text-primary" />
-                                </div>
-                                <div className="mt-3">
-                                    <Link href="/base-regional" className="text-xs text-primary hover:underline">Base</Link>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="card-hover">
-                            <CardContent className="pt-5 pb-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Exportações</p>
-                                        <p className="text-2xl font-bold mt-1 tabular-nums">{latestExportacao ? `${latestExportacao.dependencia_china_pct.toFixed(1)}%` : "—"}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Dependência China</p>
-                                    </div>
-                                    <Globe2 className="size-5 text-primary" />
-                                </div>
-                                <div className="mt-3">
-                                    <Link href="/exportacoes" className="text-xs text-primary hover:underline">Abrir módulo</Link>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
+                                <Globe2 className="size-5 text-primary" />
+                            </div>
+                            <div className="mt-3">
+                                <Link href="/exportacoes" className="text-xs text-primary hover:underline">Abrir módulo</Link>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
                 {/* Price Cards Mobile */}
                 <div className="flex sm:hidden w-full flex-col items-center gap-4">
