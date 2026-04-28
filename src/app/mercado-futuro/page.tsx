@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useData } from "@/lib/data-provider"
 
 type FuturoRow = {
   data: string
@@ -31,6 +32,23 @@ const MES_CODIGO: Record<string, string> = {
   Novembro: "X",
   Dezembro: "Z",
 }
+
+const CODIGO_MES: Record<string, string> = {
+  F: "Janeiro",
+  G: "Fevereiro",
+  H: "Março",
+  J: "Abril",
+  K: "Maio",
+  M: "Junho",
+  N: "Julho",
+  Q: "Agosto",
+  U: "Setembro",
+  V: "Outubro",
+  X: "Novembro",
+  Z: "Dezembro",
+}
+
+const ORDEM_CODIGOS = ["F", "G", "H", "J", "K", "M", "N", "Q", "U", "V", "X", "Z"]
 
 function parseBrl(value: string): number {
   const cleaned = value.replace(/[^0-9,.-]/g, "").replace(/\./g, "").replace(",", ".")
@@ -85,9 +103,47 @@ function parseMercadoFuturoRows(doc: Document): FuturoRow[] {
 }
 
 export default function MercadoFuturoPage() {
+  const { historicalData } = useData()
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const [loading, setLoading] = useState(false)
-  const [rows, setRows] = useState<FuturoRow[]>([])
+  const [widgetRows, setWidgetRows] = useState<FuturoRow[]>([])
+
+  const rowsFromHistorico = useMemo<FuturoRow[]>(() => {
+    const futuros = historicalData.filter((row) => /^bgi/i.test(row.produto))
+    if (!futuros.length) return []
+
+    const latestByProduto = new Map<string, typeof futuros[number]>()
+    for (const row of [...futuros].sort((a, b) => b.data.localeCompare(a.data))) {
+      if (!latestByProduto.has(row.produto)) {
+        latestByProduto.set(row.produto, row)
+      }
+    }
+
+    const parsed = Array.from(latestByProduto.values())
+      .map((row) => {
+        const produtoUpper = row.produto.toUpperCase()
+        const letterMatch = produtoUpper.match(/BGI[_\s-]*([FGHJKMNQUVXZ])/)
+        const codigoMes = letterMatch?.[1] || "?"
+        const yearMatch = produtoUpper.match(/(20\d{2})/)
+        const ano = yearMatch?.[1] || row.data.slice(0, 4)
+        const mesNome = CODIGO_MES[codigoMes] || "Mês"
+        return {
+          data: new Date(`${row.data}T12:00:00`).toLocaleDateString("pt-BR"),
+          codigo: `BGI ${codigoMes}`,
+          vencimento: `${mesNome} - ${ano}`,
+          valor: row.valor_brl,
+        }
+      })
+      .sort((a, b) => {
+        const codA = a.codigo.split(" ")[1] || ""
+        const codB = b.codigo.split(" ")[1] || ""
+        const ordemA = ORDEM_CODIGOS.indexOf(codA)
+        const ordemB = ORDEM_CODIGOS.indexOf(codB)
+        return ordemA - ordemB
+      })
+
+    return parsed
+  }, [historicalData])
 
   function mountWidget() {
     const iframe = iframeRef.current
@@ -102,25 +158,29 @@ export default function MercadoFuturoPage() {
   function capture() {
     const doc = iframeRef.current?.contentDocument
     if (!doc) return
-    setRows(parseMercadoFuturoRows(doc))
+    setWidgetRows(parseMercadoFuturoRows(doc))
   }
 
   const refresh = useCallback(() => {
+    if (rowsFromHistorico.length) return
+
     setLoading(true)
     mountWidget()
     window.setTimeout(() => {
       capture()
       setLoading(false)
     }, 1800)
-  }, [])
+  }, [rowsFromHistorico])
 
   useEffect(() => {
+    if (rowsFromHistorico.length) return
     const timeoutId = window.setTimeout(() => {
       refresh()
     }, 0)
     return () => window.clearTimeout(timeoutId)
-  }, [refresh])
+  }, [refresh, rowsFromHistorico])
 
+  const rows = rowsFromHistorico.length ? rowsFromHistorico : widgetRows
   const sorted = useMemo(() => [...rows].sort((a, b) => b.valor - a.valor), [rows])
   const topHigh = sorted.slice(0, 3)
   const topLow = [...sorted].reverse().slice(0, 3)
@@ -129,7 +189,7 @@ export default function MercadoFuturoPage() {
     <>
       <PageHeader
         title="Mercado Futuro"
-        description="Curva B3 de boi gordo (BGI) com leitura operacional"
+        description="Curva B3 de boi gordo (BGI) com leitura operacional baseada no histórico interno"
       >
         <Button onClick={refresh} disabled={loading}>{loading ? "Atualizando..." : "Atualizar Curva"}</Button>
       </PageHeader>
@@ -138,7 +198,10 @@ export default function MercadoFuturoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Curva Futura B3</CardTitle>
-            <CardDescription>Formato operacional: BGI + vencimento + preço</CardDescription>
+            <CardDescription>
+              Formato operacional: BGI + vencimento + preço.
+              {rowsFromHistorico.length ? " Fonte: histórico diário interno (TradingView)." : " Fonte fallback: widget Notícias Agrícolas."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -211,9 +274,11 @@ export default function MercadoFuturoPage() {
           </Card>
         </div>
 
-        <div className="hidden">
-          <iframe ref={iframeRef} title="na-b3-futuro" className="w-full h-[420px]" />
-        </div>
+        {!rowsFromHistorico.length && (
+          <div className="hidden">
+            <iframe ref={iframeRef} title="na-b3-futuro" className="w-full h-[420px]" />
+          </div>
+        )}
       </div>
     </>
   )

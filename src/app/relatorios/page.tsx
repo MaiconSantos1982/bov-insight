@@ -1,9 +1,33 @@
+"use client"
+
 import { FileChartColumnIncreasing, Newspaper } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useData } from "@/lib/data-provider"
 
 export default function RelatoriosPage() {
+  const { isSuperAdmin } = useData()
+
+  if (!isSuperAdmin) {
+    return (
+      <>
+        <PageHeader
+          title="Relatórios"
+          description="Acesso restrito para super admin"
+          showDatePicker={false}
+        />
+        <div className="p-4 sm:p-6">
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-sm text-muted-foreground">Você não tem permissão para acessar esta página.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <PageHeader

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useData } from "@/lib/data-provider"
+import { formatLocationLabel } from "@/lib/location-labels"
 
 type WidgetRow = {
   data: string
@@ -19,6 +20,20 @@ type AuxRow = {
   data: string | null
   produto: string | null
   valor: number | null
+}
+
+type PracaQuote = {
+  praca: string
+  data: string
+  preco: number
+}
+
+type EstadoQuote = {
+  uf: string
+  estado: string
+  dataMaisRecente: string
+  precoMedio: number
+  pracas: string[]
 }
 
 const CEPEA_URL =
@@ -47,10 +62,28 @@ const AUX_WIDGETS = [
   },
 ]
 
+const PRACA_TO_UF: Record<string, string> = {
+  GOIANIA: "GO",
+  DOURADOS: "MS",
+  CUIABA: "MT",
+  UBERABA: "MG",
+  "CAMPO GRANDE": "MS",
+  BELEM: "PA",
+  "PORTO VELHO": "RO",
+  "SAO PAULO": "SP",
+}
+
 function parseBrl(value: string): number {
   const cleaned = value.replace(/[^0-9,.-]/g, "").replace(/\./g, "").replace(",", ".")
   const num = Number(cleaned)
   return Number.isFinite(num) ? num : NaN
+}
+
+function extractNumericValue(value: string): number | null {
+  const match = value.match(/[-]?\d{1,3}(?:\.\d{3})*,\d{2}|[-]?\d+(?:[.,]\d+)?/)
+  if (!match) return null
+  const parsed = parseBrl(match[0])
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 function formatBrl(value: number | null | undefined): string {
@@ -88,15 +121,16 @@ function parseSingleWidget(doc: Document, title: string): AuxRow {
     if (!tds.length) continue
 
     const dateCell = tds.find((cell) => /^\d{2}\/\d{2}\/\d{4}$/.test(cell)) || null
-    const valueCell = tds.find((cell) => /R\$\s*[-\d.,]+/.test(cell)) || null
+    const valueCell = tds.find((cell) => /R\$\s*[-\d.,]+/.test(cell) || /[-]?\d{1,3}(?:\.\d{3})*,\d{2}/.test(cell)) || null
     const productCell = tds.find((cell) => cell && cell !== dateCell && cell !== valueCell) || null
 
     if (dateCell || valueCell || productCell) {
+      const parsedValue = valueCell ? extractNumericValue(valueCell) : null
       return {
         title,
         data: dateCell,
         produto: productCell,
-        valor: valueCell ? parseBrl(valueCell) : null,
+        valor: parsedValue,
       }
     }
   }
@@ -113,7 +147,7 @@ export default function CotacoesPage() {
   const [auxRows, setAuxRows] = useState<AuxRow[]>([])
   const [loading, setLoading] = useState(false)
 
-  const latestStateQuotes = useMemo(() => {
+  const latestPracaQuotes = useMemo<PracaQuote[]>(() => {
     const latestByPraca = new Map<string, { data: string; preco: number }>()
     for (const row of [...baseRegionalStats].sort((a, b) => b.data.localeCompare(a.data))) {
       if (!latestByPraca.has(row.praca_local)) {
@@ -125,6 +159,33 @@ export default function CotacoesPage() {
       .map(([praca, item]) => ({ praca, ...item }))
       .sort((a, b) => a.praca.localeCompare(b.praca))
   }, [baseRegionalStats])
+
+  const latestStateQuotes = useMemo<EstadoQuote[]>(() => {
+    const grouped = new Map<string, { valores: number[]; datas: string[]; pracas: string[] }>()
+
+    for (const row of latestPracaQuotes) {
+      const uf = PRACA_TO_UF[row.praca.toUpperCase()] || "N/D"
+      const current = grouped.get(uf) || { valores: [], datas: [], pracas: [] }
+      current.valores.push(row.preco)
+      current.datas.push(row.data)
+      current.pracas.push(row.praca)
+      grouped.set(uf, current)
+    }
+
+    return Array.from(grouped.entries())
+      .map(([uf, data]) => {
+        const precoMedio = data.valores.reduce((acc, val) => acc + val, 0) / data.valores.length
+        const dataMaisRecente = [...data.datas].sort((a, b) => b.localeCompare(a))[0]
+        return {
+          uf,
+          estado: uf === "N/D" ? "Não mapeado" : formatLocationLabel(uf),
+          dataMaisRecente,
+          precoMedio,
+          pracas: data.pracas.sort((a, b) => a.localeCompare(b)),
+        }
+      })
+      .sort((a, b) => a.uf.localeCompare(b.uf))
+  }, [latestPracaQuotes])
 
   function mountWidget(iframe: HTMLIFrameElement | null, url: string) {
     if (!iframe) return
@@ -157,10 +218,23 @@ export default function CotacoesPage() {
       mountWidget(auxRefs.current[widget.id], widget.url)
     }
 
-    window.setTimeout(() => {
-      captureWidgets()
+    void (async () => {
+      for (let attempt = 0; attempt < 7; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 800))
+        captureWidgets()
+
+        const cepeaOk = (cepeaRef.current?.contentDocument ? parseCepeaRows(cepeaRef.current.contentDocument).length : 0) >= 4
+        const auxSnapshot: AuxRow[] = []
+        for (const widget of AUX_WIDGETS) {
+          const doc = auxRefs.current[widget.id]?.contentDocument
+          if (!doc) continue
+          auxSnapshot.push(parseSingleWidget(doc, widget.title))
+        }
+        const auxOk = auxSnapshot.filter((item) => item.valor != null).length >= 2
+        if (cepeaOk && auxOk) break
+      }
       setLoading(false)
-    }, 1800)
+    })()
   }, [])
 
   useEffect(() => {
@@ -183,17 +257,39 @@ export default function CotacoesPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Boi por Estado</CardTitle>
-            <CardDescription>Leitura consolidada por praça local</CardDescription>
+            <CardDescription>Média por UF baseada nas praças monitoradas</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {latestStateQuotes.map((row) => (
+                <div key={row.uf} className="rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium flex items-center gap-2"><Landmark className="size-4 text-primary" /> {row.estado}</p>
+                    <Badge variant="outline">{new Date(`${row.dataMaisRecente}T12:00:00`).toLocaleDateString("pt-BR")}</Badge>
+                  </div>
+                  <p className="text-2xl font-bold mt-2 tabular-nums">R$ {formatBrl(row.precoMedio)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Praças: {row.pracas.join(", ")}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Boi por Praça</CardTitle>
+            <CardDescription>Leitura detalhada por praça local</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {latestPracaQuotes.map((row) => (
                 <div key={row.praca} className="rounded-lg border p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium flex items-center gap-2"><Landmark className="size-4 text-primary" /> {row.praca}</p>
+                    <p className="text-sm font-medium flex items-center gap-2"><Landmark className="size-4 text-primary" /> {formatLocationLabel(row.praca)}</p>
                     <Badge variant="outline">{new Date(`${row.data}T12:00:00`).toLocaleDateString("pt-BR")}</Badge>
                   </div>
                   <p className="text-2xl font-bold mt-2 tabular-nums">R$ {formatBrl(row.preco)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">UF: {PRACA_TO_UF[row.praca.toUpperCase()] || "N/D"}</p>
                 </div>
               ))}
             </div>

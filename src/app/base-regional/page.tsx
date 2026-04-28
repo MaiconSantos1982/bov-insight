@@ -22,7 +22,7 @@ function formatSituacaoBase(value: string | undefined) {
 }
 
 export default function BaseRegionalPage() {
-    const { baseRegionalStats, globalDateRange } = useData()
+    const { baseRegionalStats, globalDateRange, isSuperAdmin } = useData()
     const pracas = useMemo(() => [...new Set(baseRegionalStats.map((r) => r.praca_local))], [baseRegionalStats])
     const [praca, setPraca] = useState<string>(pracas[0] || "GOIANIA")
 
@@ -89,9 +89,11 @@ export default function BaseRegionalPage() {
                                 {deltaBase !== null ? `${deltaBase >= 0 ? "+" : ""}${deltaBase.toFixed(2)} p.p.` : "—"}
                             </p>
                         </div>
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={`/alertas?auto=1&produto=boi_gordo&condicao=${sugestaoCondicao}`}>Ir para Alertas Pro</Link>
-                        </Button>
+                        {isSuperAdmin && (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={`/alertas?auto=1&produto=boi_gordo&condicao=${sugestaoCondicao}`}>Ir para Alertas Pro</Link>
+                            </Button>
+                        )}
                     </CardContent>
                 </Card>
 

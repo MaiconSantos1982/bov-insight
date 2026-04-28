@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useEffect, useMemo, useState } from "react"
-import { Bell, BellOff, Plus, Trash2, Send, Clock, Smartphone } from "lucide-react"
+import { Bell, BellOff, Plus, Trash2, Send, Clock, Smartphone, ShieldAlert } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useSearchParams } from "next/navigation"
@@ -23,7 +23,7 @@ function isProdutoKey(value: string): value is ProdutoKey {
 }
 
 function AlertasPageContent() {
-  const { alertasProDestinos, usuarioConfiguracao, latestPrices } = useData()
+  const { alertasProDestinos, usuarioConfiguracao, latestPrices, isSuperAdmin } = useData()
   const searchParams = useSearchParams()
   const auto = searchParams.get("auto") === "1"
   const produtoParam = searchParams.get("produto")
@@ -76,6 +76,28 @@ function AlertasPageContent() {
 
   const activeCount = regras.filter((a) => a.ativo).length
   const triggeredCount = regras.filter((a) => a.ultimo_disparo).length
+
+  if (!isSuperAdmin) {
+    return (
+      <>
+        <PageHeader
+          title="Alertas Pro"
+          description="Acesso restrito para super admin"
+          showDatePicker={false}
+        />
+        <div className="p-4 sm:p-6">
+          <Card>
+            <CardContent className="flex items-center gap-3 py-8">
+              <ShieldAlert className="h-5 w-5 text-destructive" />
+              <p className="text-sm text-muted-foreground">
+                Você não tem permissão para acessar Alertas Pro.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
 
   async function handleToggleAlerta(id: string, current: boolean) {
     const next = !current

@@ -31,7 +31,7 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export default function ExportacoesPage() {
-    const { exportacaoResumo, globalDateRange } = useData()
+    const { exportacaoResumo, globalDateRange, isSuperAdmin } = useData()
     const [datagro, setDatagro] = useState<ExportacaoDatagroOperacional | null>(null)
     const filtered = useMemo(
         () => exportacaoResumo.filter((r) => {
@@ -142,9 +142,11 @@ export default function ExportacoesPage() {
                                 {deltaDependencia !== null ? `${deltaDependencia >= 0 ? "+" : ""}${deltaDependencia.toFixed(2)} p.p.` : "—"}
                             </p>
                         </div>
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={`/alertas?auto=1&produto=boi_gordo&condicao=${sugestaoCondicao}`}>Ir para Alertas Pro</Link>
-                        </Button>
+                        {isSuperAdmin && (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={`/alertas?auto=1&produto=boi_gordo&condicao=${sugestaoCondicao}`}>Ir para Alertas Pro</Link>
+                            </Button>
+                        )}
                     </CardContent>
                 </Card>
 

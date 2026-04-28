@@ -42,8 +42,6 @@ const PHASE_META = {
   },
 } as const
 
-const PHASE_ORDER: Array<keyof typeof PHASE_META> = ["RETENCAO", "ESTABILIDADE", "LIQUIDACAO"]
-
 const MONTH_NAMES = [
   "Janeiro",
   "Fevereiro",
@@ -102,8 +100,6 @@ export default function CicloPecuarioPage() {
   const sugestaoCondicao = deltaTaxa !== null && deltaTaxa >= 0 ? "acima_de" : "abaixo_de"
 
   const phase = (latest?.fase_ciclo || "ESTABILIDADE") as keyof typeof PHASE_META
-  const phaseIndex = PHASE_ORDER.indexOf(phase)
-  const pointerDeg = phaseIndex === 0 ? -120 : phaseIndex === 1 ? 0 : 120
 
   const monthlyAverages = useMemo(() => {
     const boiRows = historicalData.filter((row) => row.produto === "boi_gordo")
@@ -173,32 +169,26 @@ export default function CicloPecuarioPage() {
               <CardDescription>{formatLocationLabel(regiao)}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col md:flex-row gap-6 items-center">
-                <div className="relative w-[280px] h-[280px] shrink-0">
+              <div className="space-y-4">
+                <div className="relative overflow-hidden rounded-lg border border-border/60">
+                  <div className="absolute left-3 top-3 z-10">
+                    <Badge style={{ backgroundColor: `${PHASE_META[phase].color}E6`, color: "#fff" }}>
+                      Fase atual: {PHASE_META[phase].label}
+                    </Badge>
+                  </div>
+                  <div className="absolute right-3 top-3 z-10 rounded-md bg-background/80 px-2 py-1 text-xs font-semibold">
+                    {formatLocationLabel(regiao)}
+                  </div>
                   <div
-                    className="w-full h-full rounded-full"
+                    className="pointer-events-none absolute inset-0 z-[1]"
                     style={{
-                      background:
-                        "conic-gradient(from -150deg, #059669 0deg 120deg, #d97706 120deg 240deg, #dc2626 240deg 360deg)",
+                      boxShadow: `inset 0 0 0 3px ${PHASE_META[phase].color}66`,
                     }}
                   />
-                  <div className="absolute inset-6 rounded-full bg-background border" />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div
-                      className="origin-bottom"
-                      style={{ transform: `translateY(-18px) rotate(${pointerDeg}deg)` }}
-                    >
-                      <div className="w-1 h-[120px] rounded-full bg-foreground/80" />
-                    </div>
-                    <div className="absolute w-4 h-4 rounded-full bg-foreground" />
+                  <div className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-md bg-background/80 px-3 py-1 text-xs">
+                    Destaque visual do ciclo pecuário em andamento
                   </div>
-                  <div className="absolute inset-0 flex items-start justify-center pt-5 text-[11px] font-semibold text-white">RETENÇÃO</div>
-                  <div className="absolute inset-0 flex items-center justify-end pr-5 text-[11px] font-semibold text-white">ESTABILIDADE</div>
-                  <div className="absolute inset-0 flex items-end justify-center pb-5 text-[11px] font-semibold text-white">LIQUIDAÇÃO</div>
-                </div>
-
-                <div className="flex-1 space-y-3">
-                  <div className="overflow-hidden rounded-lg border border-border/60">
+                  <div className="w-full">
                     <Image
                       src="https://ztlddoutgextdmyiwoxl.supabase.co/storage/v1/object/sign/inteligencia_pecuaria/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2016_01_31.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9jNDA2OTRjYy04ZjYzLTQxODMtOTQxZS0wMGVkZDJkMjg0MTgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbnRlbGlnZW5jaWFfcGVjdWFyaWEvQ2hhdEdQVCBJbWFnZSAyOCBkZSBhYnIuIGRlIDIwMjYsIDE2XzAxXzMxLndlYnAiLCJpYXQiOjE3Nzc0MDMwNDksImV4cCI6NDkzMTAwMzA0OX0.PaL6SUp-APAPOufJbzLdhDgFumFisxtq6w0afxh-fRY"
                       alt="Fases do ciclo pecuário"
@@ -208,6 +198,8 @@ export default function CicloPecuarioPage() {
                       unoptimized
                     />
                   </div>
+                </div>
+                <div className="space-y-3">
                   <Badge style={{ backgroundColor: `${PHASE_META[phase].color}1A`, color: PHASE_META[phase].color }}>
                     {PHASE_META[phase].label}
                   </Badge>
@@ -290,16 +282,6 @@ export default function CicloPecuarioPage() {
               O aumento do abate de fêmeas eleva a oferta de carne no curto prazo e tende a pressionar o preço do boi.
               A retenção de matrizes reduz oferta imediata e tende a sustentar alta da arroba.
             </p>
-            <div className="overflow-hidden rounded-xl border border-border/60">
-              <Image
-                src="https://ztlddoutgextdmyiwoxl.supabase.co/storage/v1/object/sign/inteligencia_pecuaria/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2016_01_31.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9jNDA2OTRjYy04ZjYzLTQxODMtOTQxZS0wMGVkZDJkMjg0MTgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbnRlbGlnZW5jaWFfcGVjdWFyaWEvQ2hhdEdQVCBJbWFnZSAyOCBkZSBhYnIuIGRlIDIwMjYsIDE2XzAxXzMxLndlYnAiLCJpYXQiOjE3Nzc0MDMwNDksImV4cCI6NDkzMTAwMzA0OX0.PaL6SUp-APAPOufJbzLdhDgFumFisxtq6w0afxh-fRY"
-                alt="Ciclo pecuário e dinâmica de oferta e demanda"
-                width={1280}
-                height={1280}
-                className="h-auto w-full object-cover"
-                unoptimized
-              />
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="rounded-lg border p-3"><span className="font-semibold text-foreground">1.</span> Baixa oferta de bezerros eleva o preço do bezerro.</div>
               <div className="rounded-lg border p-3"><span className="font-semibold text-foreground">2.</span> Retenção de matrizes reduz oferta de carne e tende a elevar a arroba.</div>

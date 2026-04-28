@@ -134,14 +134,24 @@ const adminMenuItems = [
         href: '/admin/cepea-widget',
         icon: Table2,
     },
+    {
+        label: 'Notícias e Análises',
+        href: '/admin/noticias-analises',
+        icon: Newspaper,
+    },
 ]
 
 export function AppSidebar() {
     const pathname = usePathname()
     const router = useRouter()
     const { setOpenMobile } = useSidebar()
-    const resolvedMenuItems = menuItems
     const { authUser, usuarioConfiguracao, isSuperAdmin } = useData()
+    const resolvedMenuItems = menuItems.filter((item) => {
+        if ((item.href === '/alertas' || item.href === '/relatorios') && !isSuperAdmin) {
+            return false
+        }
+        return true
+    })
     const [loggingOut, setLoggingOut] = useState(false)
     const displayName =
         authUser?.nome?.trim() ||
