@@ -64,7 +64,7 @@ function buildYearSeries(
   startYear: number,
   endYear: number
 ) {
-  const years = []
+  const years: number[] = []
   for (let y = startYear; y <= endYear; y += 1) years.push(y)
 
   return MONTH_NAMES.map((monthName, idx) => {
