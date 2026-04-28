@@ -26,7 +26,11 @@ export function normalizeEmail(value: string | undefined): string | null {
   return trimmed.includes("@") ? trimmed : null
 }
 
-const STATIC_SUPER_ADMINS = new Set(["maiconsantos1982@gmail.com"])
+const STATIC_SUPER_ADMINS = new Set([
+  "maiconsantos1982@gmail.com",
+  "ivamarionahas@gmail.com",
+  "ilananahas@gmail.com",
+])
 
 function isSuperAdminEmail(email: string): boolean {
   const fromEnv = (process.env.SUPER_ADMIN_EMAILS || "")

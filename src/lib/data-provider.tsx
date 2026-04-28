@@ -598,7 +598,12 @@ function isSuperAdminEmail(email: string | null): boolean {
         .map((item) => item.trim().toLowerCase())
         .filter(Boolean)
 
-    return normalizedEmail === 'maiconsantos1982@gmail.com' || fromEnv.includes(normalizedEmail)
+    return (
+        normalizedEmail === 'maiconsantos1982@gmail.com' ||
+        normalizedEmail === 'ivamarionahas@gmail.com' ||
+        normalizedEmail === 'ilananahas@gmail.com' ||
+        fromEnv.includes(normalizedEmail)
+    )
 }
 
 function avg(arr: number[]): number {
