@@ -16,6 +16,14 @@ type GruposStatusPayload = {
   } | null
 }
 
+type GruposExecutarPayload = {
+  sucesso?: boolean
+  dados?: {
+    data_extracao?: string
+    datagro_mercado_futuro?: DatagroItem[]
+  } | null
+}
+
 type ExecucaoLogRow = {
   created_at: string
   contexto: Record<string, unknown> | null
@@ -64,6 +72,8 @@ export async function GET() {
     supabaseConfigured: Boolean(supabaseUrl && serviceRoleKey),
     groupsServerStatus: null,
     groupsRowsFound: 0,
+    groupsExecutarStatus: null,
+    groupsExecutarRowsFound: 0,
     supabaseRowsScanned: 0,
     supabaseRowsFound: 0,
     supabaseError: null,
@@ -102,6 +112,41 @@ export async function GET() {
       }
     } catch {
       // segue para fallback
+    }
+
+    // 1.1) Fallback ativo no groups-server: executa coleta datagro sem envio
+    try {
+      const executarUrl = new URL("/api/executar", normalizeBaseUrl(gruposServerUrlRaw))
+      executarUrl.searchParams.set("fonte", "datagro")
+      executarUrl.searchParams.set("enviarMensagem", "false")
+
+      const execHeaders: Record<string, string> = {}
+      if (execToken) execHeaders["x-exec-token"] = execToken
+
+      const execResponse = await fetch(executarUrl.toString(), {
+        method: "GET",
+        headers: execHeaders,
+        cache: "no-store",
+      })
+      debug.groupsExecutarStatus = execResponse.status
+
+      if (execResponse.ok) {
+        const execPayload = (await execResponse.json()) as GruposExecutarPayload
+        const dados = execPayload?.dados
+        const rows = Array.isArray(dados?.datagro_mercado_futuro) ? dados.datagro_mercado_futuro : []
+        debug.groupsExecutarRowsFound = rows.length
+
+        if (rows.length > 0) {
+          return NextResponse.json({
+            ok: true,
+            source: "groups-server-executar-datagro",
+            dataExtracao: dados?.data_extracao || null,
+            rows,
+          })
+        }
+      }
+    } catch {
+      // segue para fallback Supabase
     }
   }
 
