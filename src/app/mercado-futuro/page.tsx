@@ -15,6 +15,11 @@ type FuturoRow = {
   valor: number
 }
 
+type GruposFuturoItem = {
+  nome: string
+  preco: number | null
+}
+
 const WIDGET_B3_URL =
   "https://www.noticiasagricolas.com.br/widgets/cotacoes?id=248&fonte=Arial%2C%20Helvetica%2C%20sans-serif&tamanho=14pt&largura=400px&cortexto=333333&corcabecalho=B2C3C6&corlinha=DCE7E9&imagem=true&output=js"
 
@@ -102,11 +107,58 @@ function parseMercadoFuturoRows(doc: Document): FuturoRow[] {
   return out
 }
 
+function parseRowsFromGrupos(rows: GruposFuturoItem[], dataExtracao?: string | null): FuturoRow[] {
+  const dataBr = dataExtracao
+    ? new Date(dataExtracao).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+    : new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+
+  const parsed = rows
+    .filter((row) => row?.preco != null && Number.isFinite(Number(row.preco)))
+    .map((row) => {
+      const nome = row.nome || ""
+      const match = nome.match(/(Jan|Fev|Mar|Abr|Mai|Jun|Jul|Ago|Set|Out|Nov|Dez)\/(\d{2,4})/i)
+      const key = (match?.[1] || "").toLowerCase()
+      const anoRaw = match?.[2] || ""
+      const ano = anoRaw.length === 2 ? `20${anoRaw}` : anoRaw || new Date().getFullYear().toString()
+
+      const mesMap: Record<string, { nome: string; cod: string }> = {
+        jan: { nome: "Janeiro", cod: "F" },
+        fev: { nome: "Fevereiro", cod: "G" },
+        mar: { nome: "Março", cod: "H" },
+        abr: { nome: "Abril", cod: "J" },
+        mai: { nome: "Maio", cod: "K" },
+        jun: { nome: "Junho", cod: "M" },
+        jul: { nome: "Julho", cod: "N" },
+        ago: { nome: "Agosto", cod: "Q" },
+        set: { nome: "Setembro", cod: "U" },
+        out: { nome: "Outubro", cod: "V" },
+        nov: { nome: "Novembro", cod: "X" },
+        dez: { nome: "Dezembro", cod: "Z" },
+      }
+
+      const mes = mesMap[key] || { nome: nome, cod: "?" }
+      return {
+        data: dataBr,
+        codigo: `BGI ${mes.cod}`,
+        vencimento: `${mes.nome} - ${ano}`,
+        valor: Number(row.preco),
+      }
+    })
+    .sort((a, b) => {
+      const codA = a.codigo.split(" ")[1] || ""
+      const codB = b.codigo.split(" ")[1] || ""
+      return ORDEM_CODIGOS.indexOf(codA) - ORDEM_CODIGOS.indexOf(codB)
+    })
+
+  return parsed
+}
+
 export default function MercadoFuturoPage() {
   const { historicalData } = useData()
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const [loading, setLoading] = useState(false)
   const [widgetRows, setWidgetRows] = useState<FuturoRow[]>([])
+  const [gruposRows, setGruposRows] = useState<FuturoRow[]>([])
 
   const rowsFromHistorico = useMemo<FuturoRow[]>(() => {
     const futuros = historicalData.filter((row) => /bgi/i.test(row.produto))
@@ -162,11 +214,36 @@ export default function MercadoFuturoPage() {
   }
 
   const refresh = useCallback(() => {
-    if (rowsFromHistorico.length) return
-
     setLoading(true)
-    mountWidget()
     void (async () => {
+      // 1) Prioridade: mesma fonte usada no WhatsApp (groups-server)
+      try {
+        const res = await fetch("/api/mercado-futuro/latest", { cache: "no-store" })
+        if (res.ok) {
+          const payload = (await res.json()) as {
+            ok: boolean
+            dataExtracao?: string | null
+            rows?: GruposFuturoItem[]
+          }
+          const parsed = payload?.rows ? parseRowsFromGrupos(payload.rows, payload.dataExtracao) : []
+          if (parsed.length > 0) {
+            setGruposRows(parsed)
+            setLoading(false)
+            return
+          }
+        }
+      } catch {
+        // segue fallback
+      }
+
+      // 2) Fallback: histórico interno BGI
+      if (rowsFromHistorico.length) {
+        setLoading(false)
+        return
+      }
+
+      // 3) Último fallback: widget
+      mountWidget()
       for (let attempt = 0; attempt < 7; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 800))
         const doc = iframeRef.current?.contentDocument
@@ -189,7 +266,7 @@ export default function MercadoFuturoPage() {
     return () => window.clearTimeout(timeoutId)
   }, [refresh, rowsFromHistorico])
 
-  const rows = rowsFromHistorico.length ? rowsFromHistorico : widgetRows
+  const rows = gruposRows.length ? gruposRows : (rowsFromHistorico.length ? rowsFromHistorico : widgetRows)
   const sorted = useMemo(() => [...rows].sort((a, b) => b.valor - a.valor), [rows])
   const topHigh = sorted.slice(0, 3)
   const topLow = [...sorted].reverse().slice(0, 3)
@@ -209,7 +286,11 @@ export default function MercadoFuturoPage() {
             <CardTitle className="text-base">Curva Futura B3</CardTitle>
             <CardDescription>
               Formato operacional: BGI + vencimento + preço.
-              {rowsFromHistorico.length ? " Fonte: histórico diário interno (TradingView)." : " Fonte fallback: widget Notícias Agrícolas."}
+              {gruposRows.length
+                ? " Fonte: groups-server (mesma base do envio WhatsApp)."
+                : rowsFromHistorico.length
+                  ? " Fonte: histórico diário interno (TradingView)."
+                  : " Fonte fallback: widget Notícias Agrícolas."}
             </CardDescription>
           </CardHeader>
           <CardContent>
