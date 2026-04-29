@@ -43,16 +43,16 @@ const PHASE_META = {
 } as const
 
 const WHEEL_SEGMENTS = {
-  preco_bezerro_sobe: { angle: "-18deg", label: "Preço do bezerro sobe" },
-  retencao_matrizes: { angle: "18deg", label: "Retenção de matrizes" },
-  diminuicao_carne: { angle: "54deg", label: "Diminuição da disponibilidade de carne" },
-  arroba_sobe: { angle: "90deg", label: "Arroba do boi gordo sobe" },
-  aumento_producao_bezerros: { angle: "126deg", label: "Aumento da produção de bezerros" },
-  preco_bezerro_cai: { angle: "162deg", label: "Preço do bezerro cai" },
-  abate_femeas: { angle: "198deg", label: "Abate de fêmeas" },
-  aumento_carne: { angle: "234deg", label: "Aumento da disponibilidade de carne" },
-  arroba_cai: { angle: "-90deg", label: "Arroba do boi gordo cai" },
-  cai_producao_bezerros: { angle: "-54deg", label: "Cai a produção de bezerros" },
+  preco_bezerro_sobe: { angle: "-18deg", x: "41%", y: "16%", label: "Preço do bezerro sobe" },
+  retencao_matrizes: { angle: "18deg", x: "56%", y: "16%", label: "Retenção de matrizes" },
+  diminuicao_carne: { angle: "54deg", x: "72%", y: "27%", label: "Diminuição da disponibilidade de carne" },
+  arroba_sobe: { angle: "90deg", x: "79%", y: "48%", label: "Arroba do boi gordo sobe" },
+  aumento_producao_bezerros: { angle: "126deg", x: "68%", y: "70%", label: "Aumento da produção de bezerros" },
+  preco_bezerro_cai: { angle: "162deg", x: "51%", y: "80%", label: "Preço do bezerro cai" },
+  abate_femeas: { angle: "198deg", x: "36%", y: "78%", label: "Abate de fêmeas" },
+  aumento_carne: { angle: "234deg", x: "23%", y: "64%", label: "Aumento da disponibilidade de carne" },
+  arroba_cai: { angle: "-90deg", x: "17%", y: "48%", label: "Arroba do boi gordo cai" },
+  cai_producao_bezerros: { angle: "-54deg", x: "27%", y: "28%", label: "Cai a produção de bezerros" },
 } as const
 
 type WheelSegmentKey = keyof typeof WHEEL_SEGMENTS
@@ -111,7 +111,7 @@ function getProductTrend(
     previous,
     delta,
     pct,
-    direction: Math.abs(pct) < 0.1 ? "flat" : delta > 0 ? "up" : "down",
+    direction: Math.abs(delta) < 0.005 ? "flat" : delta > 0 ? "up" : "down",
   } as const
 }
 
@@ -307,23 +307,32 @@ export default function CicloPecuarioPage() {
                     {formatLocationLabel(regiao)}
                   </div>
                   {activeWheelSegments.map((segment, index) => (
-                    <div
-                      key={segment.key}
-                      className="cycle-wheel__indicator"
-                      style={
-                        {
-                          "--segment-angle": segment.angle,
-                          "--segment-index": index,
-                        } as CSSProperties
-                      }
-                      aria-hidden="true"
-                    >
-                      <div className="cycle-wheel__halo" />
-                      <div className="cycle-wheel__pointer">
-                        <div className="cycle-wheel__marker">
-                          <strong>{index + 1}</strong>
-                          <span />
+                    <div key={segment.key} aria-hidden="true">
+                      <div
+                        className="cycle-wheel__indicator"
+                        style={
+                          {
+                            "--segment-angle": segment.angle,
+                            "--segment-index": index,
+                          } as CSSProperties
+                        }
+                      >
+                        <div className="cycle-wheel__halo" />
+                        <div className="cycle-wheel__pointer">
+                          <div className="cycle-wheel__marker" />
                         </div>
+                      </div>
+                      <div
+                        className="cycle-wheel__segment-badge"
+                        style={
+                          {
+                            "--segment-x": segment.x,
+                            "--segment-y": segment.y,
+                            "--segment-index": index,
+                          } as CSSProperties
+                        }
+                      >
+                        {index + 1}
                       </div>
                     </div>
                   ))}
