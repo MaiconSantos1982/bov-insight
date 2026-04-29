@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "BovInsight - Inteligência de Mercado Pecuário",
+    title: "Inteligência Pecuária - Inteligência de Mercado Pecuário",
     description: "Plataforma SaaS de inteligência de mercado para pecuaristas. Acompanhe indicadores, relação de troca, sazonalidade e configure alertas pro.",
     keywords: ["pecuária", "boi gordo", "mercado pecuário", "relação de troca"],
 };

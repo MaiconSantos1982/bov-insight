@@ -183,7 +183,7 @@ export function AppSidebar() {
                                     <TrendingUp className="size-4" />
                                 </div>
                                 <div className="flex flex-col gap-0.5 leading-none">
-                                    <span className="font-semibold text-sm">BovInsight</span>
+                                    <span className="font-semibold text-sm">Inteligência Pecuária</span>
                                     <span className="text-xs text-muted-foreground">Inteligência Pecuária</span>
                                 </div>
                             </Link>

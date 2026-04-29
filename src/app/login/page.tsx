@@ -67,7 +67,7 @@ function LoginPageContent() {
             <TrendingUp className="size-5" />
           </div>
           <div>
-            <p className="font-semibold tracking-wide">BovInsight</p>
+            <p className="font-semibold tracking-wide">Inteligência Pecuária</p>
             <p className="text-sm text-white/80">Inteligencia Pecuaria</p>
           </div>
         </div>
@@ -79,14 +79,14 @@ function LoginPageContent() {
           </p>
         </div>
 
-        <p className="text-xs text-white/70">© {new Date().getFullYear()} BovInsight</p>
+        <p className="text-xs text-white/70">© {new Date().getFullYear()} Inteligência Pecuária</p>
       </div>
 
       <div className="flex items-center justify-center p-6 sm:p-10 bg-muted/20">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="space-y-2">
             <CardTitle className="text-2xl">Entrar na plataforma</CardTitle>
-            <CardDescription>Use o email da sua assinatura para acessar o BovInsight.</CardDescription>
+            <CardDescription>Use o email da sua assinatura para acessar o Inteligência Pecuária.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-4">

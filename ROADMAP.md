@@ -1,4 +1,4 @@
-# Roadmap Técnico da Plataforma Pecuária (BovInsight)
+# Roadmap Técnico da Plataforma Pecuária (Inteligência Pecuária)
 
 Atualizado em: 2026-04-14  
 Status: documento base para planejamento e consulta de desenvolvimento.

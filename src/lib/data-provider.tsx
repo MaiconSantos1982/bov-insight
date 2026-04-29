@@ -190,7 +190,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     maxRows: 10000,
                 })
 
-                console.log(`[BovInsight] Carregados ${allData.length} registros do Supabase`)
+                console.log(`[Inteligência Pecuária] Carregados ${allData.length} registros do Supabase`)
                 if (allData.length > 0) {
                     setHistoricalData(allData)
                 }
