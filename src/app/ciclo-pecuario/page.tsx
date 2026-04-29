@@ -1,12 +1,12 @@
 "use client"
 
+import type { CSSProperties } from "react"
 import { useMemo, useState } from "react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, Legend, Tooltip, ResponsiveContainer } from "recharts"
 import Link from "next/link"
 import Image from "next/image"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/components/page-header"
@@ -41,6 +41,21 @@ const PHASE_META = {
       "Fase de maior descarte de fêmeas. A oferta de animais cresce no curto prazo e tende a pressionar os preços.",
   },
 } as const
+
+const PHASE_WHEEL = {
+  RETENCAO: {
+    angle: "18deg",
+    label: "Retenção de matrizes",
+  },
+  ESTABILIDADE: {
+    angle: "-90deg",
+    label: "Arroba do boi gordo cai",
+  },
+  LIQUIDACAO: {
+    angle: "180deg",
+    label: "Abate de fêmeas",
+  },
+} satisfies Record<keyof typeof PHASE_META, { angle: string; label: string }>
 
 const MONTH_NAMES = [
   "Janeiro",
@@ -178,11 +193,28 @@ export default function CicloPecuarioPage() {
                     {PHASE_META[phase].description}
                   </p>
                 </div>
-                <div className="relative mx-auto w-full md:w-[70%] xl:w-[60%] overflow-hidden rounded-lg">
+                <div
+                  className="cycle-wheel relative mx-auto w-full max-w-[620px] px-5 py-5 sm:px-8 sm:py-8"
+                  style={
+                    {
+                      "--phase-angle": PHASE_WHEEL[phase].angle,
+                      "--phase-color": PHASE_META[phase].color,
+                    } as CSSProperties
+                  }
+                >
                   <div className="absolute right-3 top-3 z-10 rounded-md bg-background/80 px-2 py-1 text-xs font-semibold">
                     {formatLocationLabel(regiao)}
                   </div>
-                  <div className="w-full">
+                  <div className="cycle-wheel__halo" aria-hidden="true" />
+                  <div className="cycle-wheel__pointer" aria-hidden="true">
+                    <div className="cycle-wheel__marker">
+                      <span />
+                    </div>
+                  </div>
+                  <div className="sr-only">
+                    Fase destacada na mandala: {PHASE_WHEEL[phase].label}
+                  </div>
+                  <div className="relative z-[1] w-full overflow-hidden rounded-lg">
                     <Image
                       src="https://ztlddoutgextdmyiwoxl.supabase.co/storage/v1/object/sign/inteligencia_pecuaria/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2016_01_31.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9jNDA2OTRjYy04ZjYzLTQxODMtOTQxZS0wMGVkZDJkMjg0MTgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbnRlbGlnZW5jaWFfcGVjdWFyaWEvQ2hhdEdQVCBJbWFnZSAyOCBkZSBhYnIuIGRlIDIwMjYsIDE2XzAxXzMxLndlYnAiLCJpYXQiOjE3Nzc0MDMwNDksImV4cCI6NDkzMTAwMzA0OX0.PaL6SUp-APAPOufJbzLdhDgFumFisxtq6w0afxh-fRY"
                       alt="Fases do ciclo pecuário"

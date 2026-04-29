@@ -189,3 +189,102 @@ html {
 .card-hover:hover {
   box-shadow: 0 4px 12px oklch(0 0 0 / 6%);
 }
+
+.cycle-wheel {
+  --phase-angle: -90deg;
+  --phase-color: #d97706;
+  isolation: isolate;
+}
+
+.cycle-wheel__halo {
+  position: absolute;
+  inset: 0.625rem;
+  z-index: 0;
+  border-radius: 9999px;
+  background:
+    conic-gradient(
+      from calc(var(--phase-angle) - 21deg),
+      transparent 0deg,
+      color-mix(in srgb, var(--phase-color) 18%, transparent) 3deg,
+      var(--phase-color) 21deg,
+      color-mix(in srgb, var(--phase-color) 18%, transparent) 39deg,
+      transparent 43deg,
+      transparent 360deg
+    );
+  filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--phase-color) 22%, transparent));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 18px), #000 calc(100% - 16px));
+  pointer-events: none;
+  animation: cycle-halo-breathe 3.2s ease-in-out infinite;
+}
+
+.cycle-wheel__pointer {
+  position: absolute;
+  inset: 0.625rem;
+  z-index: 2;
+  border-radius: 9999px;
+  pointer-events: none;
+  transform: rotate(var(--phase-angle));
+  animation: cycle-pointer-float 2.8s ease-in-out infinite;
+}
+
+.cycle-wheel__marker {
+  position: absolute;
+  left: 50%;
+  top: -0.15rem;
+  display: grid;
+  height: 2.5rem;
+  width: 2.5rem;
+  place-items: center;
+  transform: translateX(-50%);
+}
+
+.cycle-wheel__marker::before {
+  content: "";
+  position: absolute;
+  inset: 0.3rem;
+  border-radius: 9999px;
+  background: var(--phase-color);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--phase-color) 35%, transparent);
+}
+
+.cycle-wheel__marker span {
+  position: relative;
+  margin-top: 1.65rem;
+  width: 0;
+  height: 0;
+  border-left: 0.55rem solid transparent;
+  border-right: 0.55rem solid transparent;
+  border-top: 0.9rem solid var(--phase-color);
+  filter: drop-shadow(0 4px 6px color-mix(in srgb, var(--phase-color) 32%, transparent));
+}
+
+@keyframes cycle-halo-breathe {
+  0%,
+  100% {
+    opacity: 0.76;
+    transform: scale(0.995);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.012);
+  }
+}
+
+@keyframes cycle-pointer-float {
+  0%,
+  100% {
+    transform: rotate(var(--phase-angle)) translateY(0);
+  }
+
+  50% {
+    transform: rotate(var(--phase-angle)) translateY(-0.35rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cycle-wheel__halo,
+  .cycle-wheel__pointer {
+    animation: none;
+  }
+}
