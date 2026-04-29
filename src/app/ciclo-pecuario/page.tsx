@@ -115,6 +115,18 @@ function getProductTrend(
   } as const
 }
 
+function formatBrl(value: number) {
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+  })
+}
+
+function formatPct(value: number) {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`
+}
+
 export default function CicloPecuarioPage() {
   const { cicloPecuario, globalDateRange, isSuperAdmin, historicalData } = useData()
   const regioes = useMemo(() => [...new Set(cicloPecuario.map((r) => r.regiao))], [cicloPecuario])
@@ -143,53 +155,65 @@ export default function CicloPecuarioPage() {
   const bezerroTrend = useMemo(() => getProductTrend(historicalData, "bezerro"), [historicalData])
 
   const activeWheelSegments = useMemo(() => {
-    const segmentKeys = new Set<WheelSegmentKey>()
+    const segments = new Map<WheelSegmentKey, { reason: string; kind: "observed" | "inferred" }>()
+    const addSegment = (
+      key: WheelSegmentKey,
+      reason: string,
+      kind: "observed" | "inferred" = "observed"
+    ) => {
+      if (!segments.has(key)) segments.set(key, { reason, kind })
+    }
 
     if (bezerroTrend?.direction === "up") {
-      segmentKeys.add("preco_bezerro_sobe")
-      segmentKeys.add("cai_producao_bezerros")
+      const reason = `Bezerro: ${formatBrl(bezerroTrend.previous.valor_brl)} -> ${formatBrl(bezerroTrend.latest.valor_brl)} (${formatPct(bezerroTrend.pct)})`
+      addSegment("preco_bezerro_sobe", reason)
+      addSegment("cai_producao_bezerros", "Inferência: bezerro valorizando sugere menor oferta disponível.", "inferred")
     } else if (bezerroTrend?.direction === "down") {
-      segmentKeys.add("preco_bezerro_cai")
-      segmentKeys.add("aumento_producao_bezerros")
+      const reason = `Bezerro: ${formatBrl(bezerroTrend.previous.valor_brl)} -> ${formatBrl(bezerroTrend.latest.valor_brl)} (${formatPct(bezerroTrend.pct)})`
+      addSegment("preco_bezerro_cai", reason)
+      addSegment("aumento_producao_bezerros", "Inferência: bezerro desvalorizando sugere maior oferta disponível.", "inferred")
     }
 
     if (deltaTaxa !== null) {
       if (deltaTaxa >= 0.15) {
-        segmentKeys.add("abate_femeas")
-        segmentKeys.add("aumento_carne")
+        const reason = `Taxa de fêmeas subiu ${deltaTaxa.toFixed(2)} p.p. no mês.`
+        addSegment("abate_femeas", reason)
+        addSegment("aumento_carne", "Inferência: mais abate de fêmeas aumenta a oferta de carne.", "inferred")
       } else if (deltaTaxa <= -0.15) {
-        segmentKeys.add("retencao_matrizes")
-        segmentKeys.add("diminuicao_carne")
+        const reason = `Taxa de fêmeas caiu ${Math.abs(deltaTaxa).toFixed(2)} p.p. no mês.`
+        addSegment("retencao_matrizes", reason)
+        addSegment("diminuicao_carne", "Inferência: retenção reduz a oferta imediata de carne.", "inferred")
       }
     } else {
       if (phase === "RETENCAO") {
-        segmentKeys.add("retencao_matrizes")
-        segmentKeys.add("diminuicao_carne")
+        addSegment("retencao_matrizes", "Fallback pela classificação macro: retenção.")
+        addSegment("diminuicao_carne", "Fallback pela classificação macro: retenção reduz oferta imediata.", "inferred")
       }
       if (phase === "LIQUIDACAO") {
-        segmentKeys.add("abate_femeas")
-        segmentKeys.add("aumento_carne")
+        addSegment("abate_femeas", "Fallback pela classificação macro: liquidação.")
+        addSegment("aumento_carne", "Fallback pela classificação macro: liquidação amplia oferta de carne.", "inferred")
       }
     }
 
     if (boiTrend?.direction === "up") {
-      segmentKeys.add("arroba_sobe")
+      addSegment("arroba_sobe", `Boi gordo: ${formatBrl(boiTrend.previous.valor_brl)} -> ${formatBrl(boiTrend.latest.valor_brl)} (${formatPct(boiTrend.pct)})`)
     } else if (boiTrend?.direction === "down") {
-      segmentKeys.add("arroba_cai")
+      addSegment("arroba_cai", `Boi gordo: ${formatBrl(boiTrend.previous.valor_brl)} -> ${formatBrl(boiTrend.latest.valor_brl)} (${formatPct(boiTrend.pct)})`)
     }
 
-    if (!segmentKeys.size) {
-      segmentKeys.add(
+    if (!segments.size) {
+      const fallbackKey =
         phase === "RETENCAO"
           ? "retencao_matrizes"
           : phase === "LIQUIDACAO"
             ? "abate_femeas"
             : "arroba_cai"
-      )
+      addSegment(fallbackKey, `Fallback pela fase macro: ${PHASE_META[phase].label}.`)
     }
 
-    return Array.from(segmentKeys).map((key) => ({
+    return Array.from(segments.entries()).map(([key, signal]) => ({
       key,
+      ...signal,
       ...WHEEL_SEGMENTS[key],
     }))
   }, [bezerroTrend, boiTrend, deltaTaxa, phase])
@@ -297,6 +321,7 @@ export default function CicloPecuarioPage() {
                       <div className="cycle-wheel__halo" />
                       <div className="cycle-wheel__pointer">
                         <div className="cycle-wheel__marker">
+                          <strong>{index + 1}</strong>
                           <span />
                         </div>
                       </div>
@@ -314,6 +339,29 @@ export default function CicloPecuarioPage() {
                       className="h-auto w-full object-cover"
                       unoptimized
                     />
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Leitura da mandala
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {activeWheelSegments.map((segment, index) => (
+                      <div key={segment.key} className="flex gap-2 rounded-md bg-background p-2 text-sm">
+                        <span
+                          className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                          style={{ backgroundColor: PHASE_META[phase].color }}
+                        >
+                          {index + 1}
+                        </span>
+                        <span>
+                          <span className="font-semibold text-foreground">{segment.label}</span>
+                          <span className="block text-xs leading-relaxed text-muted-foreground">
+                            {segment.reason}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div className="space-y-3">
