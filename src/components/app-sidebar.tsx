@@ -23,6 +23,7 @@ import {
     FileText,
     Webhook,
     Table2,
+    ListChecks,
     LogOut,
 } from 'lucide-react'
 import {
@@ -138,6 +139,11 @@ const adminMenuItems = [
         label: 'Notícias e Análises',
         href: '/admin/noticias-analises',
         icon: Newspaper,
+    },
+    {
+        label: 'Lista de Espera',
+        href: '/admin/lista-espera',
+        icon: ListChecks,
     },
 ]
 

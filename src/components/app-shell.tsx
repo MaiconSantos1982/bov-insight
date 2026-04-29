@@ -11,12 +11,12 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
-  const isAuthRoute = pathname === "/login"
-  const [checkingAuth, setCheckingAuth] = useState(!isAuthRoute)
-  const [authenticated, setAuthenticated] = useState(isAuthRoute)
+  const isPublicStandaloneRoute = pathname === "/login" || pathname === "/lista-espera"
+  const [checkingAuth, setCheckingAuth] = useState(!isPublicStandaloneRoute)
+  const [authenticated, setAuthenticated] = useState(isPublicStandaloneRoute)
 
   useEffect(() => {
-    if (isAuthRoute) {
+    if (isPublicStandaloneRoute) {
       setCheckingAuth(false)
       setAuthenticated(true)
       return
@@ -45,9 +45,9 @@ export function AppShell({ children }: AppShellProps) {
     return () => {
       active = false
     }
-  }, [isAuthRoute, pathname])
+  }, [isPublicStandaloneRoute, pathname])
 
-  if (isAuthRoute) {
+  if (isPublicStandaloneRoute) {
     return <main className="min-h-screen">{children}</main>
   }
 
