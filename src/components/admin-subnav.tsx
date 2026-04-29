@@ -12,6 +12,7 @@ const items = [
   { href: "/admin/logs-execucao", label: "Logs de Execucao" },
   { href: "/admin/cepea-widget", label: "CEPEA Widget" },
   { href: "/admin/noticias-analises", label: "Notícias e Análises" },
+  { href: "/admin/lista-espera", label: "Lista de Espera" },
 ]
 
 export function AdminSubnav() {

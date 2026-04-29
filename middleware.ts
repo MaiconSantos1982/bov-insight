@@ -4,6 +4,8 @@ const AUTH_COOKIE_NAME = "bovinsight_session"
 
 const PUBLIC_PATHS = [
   "/login",
+  "/lista-espera",
+  "/api/lista-espera",
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/me",
