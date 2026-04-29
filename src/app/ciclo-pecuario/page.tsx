@@ -42,20 +42,20 @@ const PHASE_META = {
   },
 } as const
 
-const PHASE_WHEEL = {
-  RETENCAO: {
-    angle: "18deg",
-    label: "Retenção de matrizes",
-  },
-  ESTABILIDADE: {
-    angle: "-90deg",
-    label: "Arroba do boi gordo cai",
-  },
-  LIQUIDACAO: {
-    angle: "180deg",
-    label: "Abate de fêmeas",
-  },
-} satisfies Record<keyof typeof PHASE_META, { angle: string; label: string }>
+const WHEEL_SEGMENTS = {
+  preco_bezerro_sobe: { angle: "-18deg", label: "Preço do bezerro sobe" },
+  retencao_matrizes: { angle: "18deg", label: "Retenção de matrizes" },
+  diminuicao_carne: { angle: "54deg", label: "Diminuição da disponibilidade de carne" },
+  arroba_sobe: { angle: "90deg", label: "Arroba do boi gordo sobe" },
+  aumento_producao_bezerros: { angle: "126deg", label: "Aumento da produção de bezerros" },
+  preco_bezerro_cai: { angle: "162deg", label: "Preço do bezerro cai" },
+  abate_femeas: { angle: "198deg", label: "Abate de fêmeas" },
+  aumento_carne: { angle: "234deg", label: "Aumento da disponibilidade de carne" },
+  arroba_cai: { angle: "-90deg", label: "Arroba do boi gordo cai" },
+  cai_producao_bezerros: { angle: "-54deg", label: "Cai a produção de bezerros" },
+} as const
+
+type WheelSegmentKey = keyof typeof WHEEL_SEGMENTS
 
 const MONTH_NAMES = [
   "Janeiro",
@@ -91,6 +91,30 @@ function buildYearSeries(
   })
 }
 
+function getProductTrend(
+  data: { data: string; produto: string; valor_brl: number }[],
+  produto: string
+) {
+  const rows = data
+    .filter((row) => row.produto === produto)
+    .sort((a, b) => b.data.localeCompare(a.data))
+
+  const latest = rows[0]
+  const previous = rows.find((row) => row.data < latest?.data)
+  if (!latest || !previous) return null
+
+  const delta = latest.valor_brl - previous.valor_brl
+  const pct = previous.valor_brl ? (delta / previous.valor_brl) * 100 : 0
+
+  return {
+    latest,
+    previous,
+    delta,
+    pct,
+    direction: Math.abs(pct) < 0.1 ? "flat" : delta > 0 ? "up" : "down",
+  } as const
+}
+
 export default function CicloPecuarioPage() {
   const { cicloPecuario, globalDateRange, isSuperAdmin, historicalData } = useData()
   const regioes = useMemo(() => [...new Set(cicloPecuario.map((r) => r.regiao))], [cicloPecuario])
@@ -115,6 +139,60 @@ export default function CicloPecuarioPage() {
   const sugestaoCondicao = deltaTaxa !== null && deltaTaxa >= 0 ? "acima_de" : "abaixo_de"
 
   const phase = (latest?.fase_ciclo || "ESTABILIDADE") as keyof typeof PHASE_META
+  const boiTrend = useMemo(() => getProductTrend(historicalData, "boi_gordo"), [historicalData])
+  const bezerroTrend = useMemo(() => getProductTrend(historicalData, "bezerro"), [historicalData])
+
+  const activeWheelSegments = useMemo(() => {
+    const segmentKeys = new Set<WheelSegmentKey>()
+
+    if (bezerroTrend?.direction === "up") {
+      segmentKeys.add("preco_bezerro_sobe")
+      segmentKeys.add("cai_producao_bezerros")
+    } else if (bezerroTrend?.direction === "down") {
+      segmentKeys.add("preco_bezerro_cai")
+      segmentKeys.add("aumento_producao_bezerros")
+    }
+
+    if (deltaTaxa !== null) {
+      if (deltaTaxa >= 0.15) {
+        segmentKeys.add("abate_femeas")
+        segmentKeys.add("aumento_carne")
+      } else if (deltaTaxa <= -0.15) {
+        segmentKeys.add("retencao_matrizes")
+        segmentKeys.add("diminuicao_carne")
+      }
+    } else {
+      if (phase === "RETENCAO") {
+        segmentKeys.add("retencao_matrizes")
+        segmentKeys.add("diminuicao_carne")
+      }
+      if (phase === "LIQUIDACAO") {
+        segmentKeys.add("abate_femeas")
+        segmentKeys.add("aumento_carne")
+      }
+    }
+
+    if (boiTrend?.direction === "up") {
+      segmentKeys.add("arroba_sobe")
+    } else if (boiTrend?.direction === "down") {
+      segmentKeys.add("arroba_cai")
+    }
+
+    if (!segmentKeys.size) {
+      segmentKeys.add(
+        phase === "RETENCAO"
+          ? "retencao_matrizes"
+          : phase === "LIQUIDACAO"
+            ? "abate_femeas"
+            : "arroba_cai"
+      )
+    }
+
+    return Array.from(segmentKeys).map((key) => ({
+      key,
+      ...WHEEL_SEGMENTS[key],
+    }))
+  }, [bezerroTrend, boiTrend, deltaTaxa, phase])
 
   const monthlyAverages = useMemo(() => {
     const boiRows = historicalData.filter((row) => row.produto === "boi_gordo")
@@ -197,7 +275,6 @@ export default function CicloPecuarioPage() {
                   className="cycle-wheel relative mx-auto w-full max-w-[620px] px-5 py-5 sm:px-8 sm:py-8"
                   style={
                     {
-                      "--phase-angle": PHASE_WHEEL[phase].angle,
                       "--phase-color": PHASE_META[phase].color,
                     } as CSSProperties
                   }
@@ -205,14 +282,28 @@ export default function CicloPecuarioPage() {
                   <div className="absolute right-3 top-3 z-10 rounded-md bg-background/80 px-2 py-1 text-xs font-semibold">
                     {formatLocationLabel(regiao)}
                   </div>
-                  <div className="cycle-wheel__halo" aria-hidden="true" />
-                  <div className="cycle-wheel__pointer" aria-hidden="true">
-                    <div className="cycle-wheel__marker">
-                      <span />
+                  {activeWheelSegments.map((segment, index) => (
+                    <div
+                      key={segment.key}
+                      className="cycle-wheel__indicator"
+                      style={
+                        {
+                          "--segment-angle": segment.angle,
+                          "--segment-index": index,
+                        } as CSSProperties
+                      }
+                      aria-hidden="true"
+                    >
+                      <div className="cycle-wheel__halo" />
+                      <div className="cycle-wheel__pointer">
+                        <div className="cycle-wheel__marker">
+                          <span />
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                   <div className="sr-only">
-                    Fase destacada na mandala: {PHASE_WHEEL[phase].label}
+                    Sinais destacados na mandala: {activeWheelSegments.map((segment) => segment.label).join(", ")}
                   </div>
                   <div className="relative z-[1] w-full overflow-hidden rounded-lg">
                     <Image

@@ -191,19 +191,28 @@ html {
 }
 
 .cycle-wheel {
-  --phase-angle: -90deg;
   --phase-color: #d97706;
   isolation: isolate;
 }
 
-.cycle-wheel__halo {
+.cycle-wheel__indicator {
+  --segment-angle: -90deg;
+  --segment-index: 0;
   position: absolute;
   inset: 0.625rem;
+  z-index: 2;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.cycle-wheel__halo {
+  position: absolute;
+  inset: 0;
   z-index: 0;
   border-radius: 9999px;
   background:
     conic-gradient(
-      from calc(var(--phase-angle) - 21deg),
+      from calc(var(--segment-angle) - 21deg),
       transparent 0deg,
       color-mix(in srgb, var(--phase-color) 18%, transparent) 3deg,
       var(--phase-color) 21deg,
@@ -213,18 +222,18 @@ html {
     );
   filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--phase-color) 22%, transparent));
   mask: radial-gradient(farthest-side, transparent calc(100% - 18px), #000 calc(100% - 16px));
-  pointer-events: none;
   animation: cycle-halo-breathe 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--segment-index) * -0.45s);
 }
 
 .cycle-wheel__pointer {
   position: absolute;
-  inset: 0.625rem;
-  z-index: 2;
+  inset: 0;
+  z-index: 1;
   border-radius: 9999px;
-  pointer-events: none;
-  transform: rotate(var(--phase-angle));
+  transform: rotate(var(--segment-angle));
   animation: cycle-pointer-float 2.8s ease-in-out infinite;
+  animation-delay: calc(var(--segment-index) * -0.35s);
 }
 
 .cycle-wheel__marker {
@@ -274,11 +283,11 @@ html {
 @keyframes cycle-pointer-float {
   0%,
   100% {
-    transform: rotate(var(--phase-angle)) translateY(0);
+    transform: rotate(var(--segment-angle)) translateY(0);
   }
 
   50% {
-    transform: rotate(var(--phase-angle)) translateY(-0.35rem);
+    transform: rotate(var(--segment-angle)) translateY(-0.35rem);
   }
 }
 
