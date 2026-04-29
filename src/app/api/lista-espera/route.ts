@@ -14,6 +14,12 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
+function normalizeWhatsapp(value: string): string {
+  const digits = value.replace(/\D/g, "")
+  if (digits.startsWith("55")) return digits.slice(2, 13)
+  return digits.slice(0, 11)
+}
+
 export async function POST(request: Request) {
   let body: Body
   try {
@@ -24,7 +30,7 @@ export async function POST(request: Request) {
 
   const nome = (body.nome || "").trim()
   const email = normalizeEmail(body.email || "")
-  const whatsapp = (body.whatsapp || "").trim()
+  const whatsapp = normalizeWhatsapp(body.whatsapp || "")
 
   if (!nome || !email || !whatsapp) {
     return NextResponse.json({ ok: false, error: "Nome, e-mail e WhatsApp são obrigatórios." }, { status: 400 })
@@ -32,6 +38,10 @@ export async function POST(request: Request) {
 
   if (!email.includes("@")) {
     return NextResponse.json({ ok: false, error: "E-mail inválido." }, { status: 400 })
+  }
+
+  if (!(whatsapp.length === 10 || whatsapp.length === 11)) {
+    return NextResponse.json({ ok: false, error: "WhatsApp inválido. Informe DDD + número." }, { status: 400 })
   }
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL

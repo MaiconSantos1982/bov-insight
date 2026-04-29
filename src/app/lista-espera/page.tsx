@@ -14,10 +14,42 @@ export default function ListaEsperaPage() {
   const [sucesso, setSucesso] = useState(false)
   const [erro, setErro] = useState("")
 
+  function onlyDigits(value: string): string {
+    return value.replace(/\D/g, "")
+  }
+
+  function normalizeWhatsappDigits(value: string): string {
+    const digits = onlyDigits(value)
+    if (digits.startsWith("55")) return digits.slice(2, 13)
+    return digits.slice(0, 11)
+  }
+
+  function formatWhatsapp(value: string): string {
+    const digits = normalizeWhatsappDigits(value)
+    const ddd = digits.slice(0, 2)
+    const partA = digits.length > 10 ? digits.slice(2, 7) : digits.slice(2, 6)
+    const partB = digits.length > 10 ? digits.slice(7, 11) : digits.slice(6, 10)
+
+    if (!ddd) return ""
+    if (!partA) return `(${ddd}`
+    if (!partB) return `(${ddd}) ${partA}`
+    return `(${ddd}) ${partA}-${partB}`
+  }
+
+  function isWhatsappValid(value: string): boolean {
+    const digits = normalizeWhatsappDigits(value)
+    return digits.length === 10 || digits.length === 11
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     setLoading(true)
     setErro("")
+    if (!isWhatsappValid(whatsapp)) {
+      setErro("Informe um WhatsApp válido com DDD, ex: (11) 99999-9999.")
+      setLoading(false)
+      return
+    }
 
     try {
       const response = await fetch("/api/lista-espera", {
@@ -76,8 +108,12 @@ export default function ListaEsperaPage() {
                   <Label htmlFor="whatsapp">WhatsApp</Label>
                   <Input
                     id="whatsapp"
+                    type="tel"
                     value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
+                    onChange={(e) => setWhatsapp(formatWhatsapp(e.target.value))}
+                    placeholder="(11) 99999-9999"
+                    inputMode="numeric"
+                    maxLength={15}
                     required
                   />
                 </div>
