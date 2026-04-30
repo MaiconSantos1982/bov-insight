@@ -67,8 +67,8 @@ function LoginPageContent() {
             <TrendingUp className="size-5" />
           </div>
           <div>
-            <p className="font-semibold tracking-wide">Inteligência Pecuária</p>
-            <p className="text-sm text-white/80">Inteligencia Pecuaria</p>
+            <p className="font-semibold tracking-wide">Inteligência</p>
+            <p className="text-sm text-white/80">Pecuária</p>
           </div>
         </div>
 
