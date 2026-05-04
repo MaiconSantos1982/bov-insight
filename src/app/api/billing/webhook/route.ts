@@ -461,19 +461,29 @@ export async function POST(req: NextRequest) {
   }
 
   const tokenFromHeader = req.headers.get("x-webhook-token")
-  const tokenFromQuery = req.nextUrl.searchParams.get("token")
+  const tokenFromQuery =
+    req.nextUrl.searchParams.get("token") ||
+    req.nextUrl.searchParams.get("webhook_token") ||
+    req.nextUrl.searchParams.get("key")
   const tokenReceived = tokenFromHeader || tokenFromQuery
   if (tokenReceived !== webhookToken) {
     return NextResponse.json({ ok: false, error: "Webhook token inválido." }, { status: 401 })
   }
 
   const rawBody = await req.text()
+  if (!rawBody.trim()) {
+    return NextResponse.json({ ok: true, test: true, message: "Webhook autenticado (ping sem payload)." })
+  }
   let payload: WebhookPayload
 
   try {
     payload = JSON.parse(rawBody) as WebhookPayload
   } catch {
-    return NextResponse.json({ ok: false, error: "Payload JSON inválido." }, { status: 400 })
+    return NextResponse.json({
+      ok: true,
+      test: true,
+      message: "Webhook autenticado (payload não-JSON aceito para teste).",
+    })
   }
 
   const eventType = `${payload.type || "unknown"}.${payload.event || "unknown"}`
@@ -674,7 +684,7 @@ export async function GET() {
     ok: true,
     endpoint: "/api/billing/webhook",
     method: "POST",
-    auth_header: "x-webhook-token (opcional quando usar ?token=...)",
-    auth_query: "token=<BILLING_WEBHOOK_TOKEN>",
+    auth_header: "x-webhook-token (opcional quando usar query string)",
+    auth_query: "token=<BILLING_WEBHOOK_TOKEN> (ou webhook_token / key)",
   })
 }
