@@ -460,7 +460,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "BILLING_WEBHOOK_TOKEN é obrigatório." }, { status: 500 })
   }
 
-  const tokenReceived = req.headers.get("x-webhook-token")
+  const tokenFromHeader = req.headers.get("x-webhook-token")
+  const tokenFromQuery = req.nextUrl.searchParams.get("token")
+  const tokenReceived = tokenFromHeader || tokenFromQuery
   if (tokenReceived !== webhookToken) {
     return NextResponse.json({ ok: false, error: "Webhook token inválido." }, { status: 401 })
   }
@@ -672,6 +674,7 @@ export async function GET() {
     ok: true,
     endpoint: "/api/billing/webhook",
     method: "POST",
-    auth_header: "x-webhook-token (obrigatório)",
+    auth_header: "x-webhook-token (opcional quando usar ?token=...)",
+    auth_query: "token=<BILLING_WEBHOOK_TOKEN>",
   })
 }
