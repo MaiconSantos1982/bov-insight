@@ -217,20 +217,22 @@ async function findUsuarioIdByClient(
   const phone = normalizePhoneE164(payload.client?.cellphone || payload.lead?.cellphone || phoneFromMeta || undefined)
 
   if (email) {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("boigordo_usuarios_perfil")
       .select("usuario_id")
       .eq("email", email)
       .maybeSingle()
+    if (error) throw new Error(`Falha ao buscar usuário por email: ${error.message}`)
     if (data?.usuario_id) return data.usuario_id
   }
 
   if (phone) {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("boigordo_usuarios_perfil")
       .select("usuario_id")
       .eq("telefone_whatsapp", phone)
       .maybeSingle()
+    if (error) throw new Error(`Falha ao buscar usuário por telefone: ${error.message}`)
     if (data?.usuario_id) return data.usuario_id
   }
 
@@ -265,7 +267,20 @@ async function upsertUsuarioPerfilFromWebhook(
 
   // Se já existir por email/telefone, reutiliza.
   const usuarioExistente = await findUsuarioIdByClient(supabaseAdmin, payload)
-  if (usuarioExistente) return usuarioExistente
+  if (usuarioExistente) {
+    const updatePayload: Record<string, unknown> = { nome }
+    if (email) updatePayload.email = email
+    if (phone) {
+      updatePayload.telefone_whatsapp = phone
+      if (!phoneRaw) updatePayload.observacoes = "Webhook: telefone fallback gerado automaticamente."
+    }
+    const { error: updateError } = await supabaseAdmin
+      .from("boigordo_usuarios_perfil")
+      .update(updatePayload)
+      .eq("usuario_id", usuarioExistente)
+    if (updateError) throw new Error(`Falha ao atualizar perfil existente: ${updateError.message}`)
+    return usuarioExistente
+  }
 
   if (!phone) return null
 
@@ -336,30 +351,42 @@ async function upsertAssinaturaFromWebhook(
 
   // Busca por subscription id do gateway (preferencial)
   if (gatewaySubscriptionId) {
-    const { data: existingByGateway } = await supabaseAdmin
+    const { data: existingByGateway, error: findGatewayError } = await supabaseAdmin
       .from("boigordo_assinaturas")
       .select("id, status")
       .eq("gateway", "PAYMENT_WEBHOOK")
       .eq("gateway_subscription_id", gatewaySubscriptionId)
       .maybeSingle()
+    if (findGatewayError) throw new Error(`Falha ao buscar assinatura por gateway: ${findGatewayError.message}`)
 
     if (existingByGateway?.id) {
-      await supabaseAdmin.from("boigordo_assinaturas").update(assinaturaPayload).eq("id", existingByGateway.id)
+      const { error: updateGatewayError } = await supabaseAdmin
+        .from("boigordo_assinaturas")
+        .update(assinaturaPayload)
+        .eq("id", existingByGateway.id)
+      if (updateGatewayError) throw new Error(`Falha ao atualizar assinatura por gateway: ${updateGatewayError.message}`)
       return { assinaturaId: existingByGateway.id, statusNovo }
     }
   }
 
   // Fallback por usuario
-  const { data: existingByUser } = await supabaseAdmin
+  const { data: existingByUser, error: findUserSubscriptionError } = await supabaseAdmin
     .from("boigordo_assinaturas")
     .select("id")
     .eq("usuario_id", usuarioId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
+  if (findUserSubscriptionError) throw new Error(`Falha ao buscar assinatura por usuário: ${findUserSubscriptionError.message}`)
 
   if (existingByUser?.id) {
-    await supabaseAdmin.from("boigordo_assinaturas").update(assinaturaPayload).eq("id", existingByUser.id)
+    const { error: updateUserSubscriptionError } = await supabaseAdmin
+      .from("boigordo_assinaturas")
+      .update(assinaturaPayload)
+      .eq("id", existingByUser.id)
+    if (updateUserSubscriptionError) {
+      throw new Error(`Falha ao atualizar assinatura por usuário: ${updateUserSubscriptionError.message}`)
+    }
     return { assinaturaId: existingByUser.id, statusNovo }
   }
 
@@ -392,11 +419,12 @@ async function insertPagamentoHistoricoFromWebhook(
 
   const status = mapSaleStatusToPayment(payment.status || undefined)
 
-  const { data: exists } = await supabaseAdmin
+  const { data: exists, error: existsError } = await supabaseAdmin
     .from("boigordo_pagamentos_historico")
     .select("id")
     .eq("gateway_payment_id", payment.paymentId)
     .maybeSingle()
+  if (existsError) throw new Error(`Falha ao verificar pagamento existente: ${existsError.message}`)
 
   if (exists?.id) return
 
@@ -428,9 +456,12 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+  if (!webhookToken) {
+    return NextResponse.json({ ok: false, error: "BILLING_WEBHOOK_TOKEN é obrigatório." }, { status: 500 })
+  }
 
   const tokenReceived = req.headers.get("x-webhook-token")
-  if (webhookToken && tokenReceived !== webhookToken) {
+  if (tokenReceived !== webhookToken) {
     return NextResponse.json({ ok: false, error: "Webhook token inválido." }, { status: 401 })
   }
 
@@ -449,12 +480,15 @@ export async function POST(req: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
-  const { data: existingEvent } = await supabaseAdmin
+  const { data: existingEvent, error: existingEventError } = await supabaseAdmin
     .from("boigordo_billing_eventos")
     .select("id, status_processamento, usuario_id, assinatura_id")
     .eq("provider", provider)
     .eq("provider_event_id", providerEventId)
     .maybeSingle()
+  if (existingEventError) {
+    return NextResponse.json({ ok: false, error: `Falha ao consultar evento existente: ${existingEventError.message}` }, { status: 500 })
+  }
 
   if (existingEvent?.id) {
     // Se o evento já existia, mas sem vínculo de usuário/assinatura,
@@ -474,7 +508,7 @@ export async function POST(req: NextRequest) {
             await insertPagamentoHistoricoFromWebhook(supabaseAdmin, payload, assinaturaId, usuarioId)
           }
 
-          await supabaseAdmin.from("boigordo_assinaturas_eventos").insert({
+          const { error: assinaturaEventoError } = await supabaseAdmin.from("boigordo_assinaturas_eventos").insert({
             assinatura_id: assinaturaId,
             usuario_id: usuarioId,
             evento: eventType,
@@ -483,9 +517,12 @@ export async function POST(req: NextRequest) {
             origem: "WEBHOOK",
             detalhes: payload,
           })
+          if (assinaturaEventoError) {
+            throw new Error(`Falha ao registrar histórico de assinatura (duplicado): ${assinaturaEventoError.message}`)
+          }
         }
 
-        await supabaseAdmin
+        const { error: updateBillingEventError } = await supabaseAdmin
           .from("boigordo_billing_eventos")
           .update({
             usuario_id: usuarioId,
@@ -495,6 +532,9 @@ export async function POST(req: NextRequest) {
             erro: usuarioId ? null : "Reprocessado sem vínculo (faltou email/telefone válido no payload).",
           })
           .eq("id", existingEvent.id)
+        if (updateBillingEventError) {
+          throw new Error(`Falha ao atualizar evento reprocessado: ${updateBillingEventError.message}`)
+        }
 
         return NextResponse.json({
           ok: true,
@@ -507,7 +547,7 @@ export async function POST(req: NextRequest) {
         })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        await supabaseAdmin
+        const { error: markFailedError } = await supabaseAdmin
           .from("boigordo_billing_eventos")
           .update({
             status_processamento: "FALHA",
@@ -515,6 +555,13 @@ export async function POST(req: NextRequest) {
             processed_at: new Date().toISOString(),
           })
           .eq("id", existingEvent.id)
+        if (markFailedError) {
+          return NextResponse.json(
+            { ok: false, error: `${message} | Falha ao marcar evento como FALHA: ${markFailedError.message}` },
+            { status: 500 }
+          )
+        }
+        return NextResponse.json({ ok: false, duplicate: true, error: message }, { status: 500 })
       }
     }
 
@@ -561,7 +608,7 @@ export async function POST(req: NextRequest) {
         await insertPagamentoHistoricoFromWebhook(supabaseAdmin, payload, assinaturaId, usuarioId)
       }
 
-      await supabaseAdmin.from("boigordo_assinaturas_eventos").insert({
+      const { error: assinaturaEventoError } = await supabaseAdmin.from("boigordo_assinaturas_eventos").insert({
         assinatura_id: assinaturaId,
         usuario_id: usuarioId,
         evento: eventType,
@@ -570,9 +617,12 @@ export async function POST(req: NextRequest) {
         origem: "WEBHOOK",
         detalhes: payload,
       })
+      if (assinaturaEventoError) {
+        throw new Error(`Falha ao registrar histórico de assinatura: ${assinaturaEventoError.message}`)
+      }
     }
 
-    await supabaseAdmin
+    const { error: updateBillingEventError } = await supabaseAdmin
       .from("boigordo_billing_eventos")
       .update({
         usuario_id: usuarioId,
@@ -583,6 +633,9 @@ export async function POST(req: NextRequest) {
         erro: usuarioId ? null : "Evento processado sem vínculo de usuário (faltou email/telefone válido no payload).",
       })
       .eq("id", billingEvent.id)
+    if (updateBillingEventError) {
+      throw new Error(`Falha ao atualizar status do evento de billing: ${updateBillingEventError.message}`)
+    }
 
     return NextResponse.json({
       ok: true,
@@ -594,7 +647,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 
-    await supabaseAdmin
+    const { error: markFailedError } = await supabaseAdmin
       .from("boigordo_billing_eventos")
       .update({
         status_processamento: "FALHA",
@@ -603,6 +656,12 @@ export async function POST(req: NextRequest) {
         processed_at: new Date().toISOString(),
       })
       .eq("id", billingEvent.id)
+    if (markFailedError) {
+      return NextResponse.json(
+        { ok: false, error: `${message} | Falha ao marcar evento como FALHA: ${markFailedError.message}` },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
@@ -613,6 +672,6 @@ export async function GET() {
     ok: true,
     endpoint: "/api/billing/webhook",
     method: "POST",
-    auth_header: "x-webhook-token (opcional, conforme BILLING_WEBHOOK_TOKEN)",
+    auth_header: "x-webhook-token (obrigatório)",
   })
 }
