@@ -8,13 +8,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
+
+const OFFER_URL = "https://payfast.greenn.com.br/adesj3f/offer/QwHQe4?utm_source=popup"
+const SUPPORT_TEXT = "Não estou conseguindo acesso ao sistema Inteligência Pecuária"
+const SUPPORT_URL = `https://wa.me/5551992049514?text=${encodeURIComponent(SUPPORT_TEXT)}`
+
+type LoginBlockMode = "not_found" | "invalid_status" | null
 
 function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
+  const [blockMode, setBlockMode] = useState<LoginBlockMode>(null)
+  const [blockStatus, setBlockStatus] = useState<string>("")
 
   const next = searchParams.get("next") || "/"
 
@@ -44,6 +60,24 @@ function LoginPageContent() {
       const payload = await response.json()
 
       if (!response.ok || !payload?.ok) {
+        const motivo = String(payload?.motivo || "")
+        const assinaturaStatus = String(payload?.assinatura?.status || "")
+
+        if (motivo === "USUARIO_NAO_ENCONTRADO") {
+          setBlockStatus("")
+          setBlockMode("not_found")
+          return
+        }
+
+        if (motivo === "SEM_ASSINATURA" || motivo.startsWith("ASSINATURA_")) {
+          const status =
+            assinaturaStatus ||
+            (motivo.startsWith("ASSINATURA_") ? motivo.replace("ASSINATURA_", "") : "SEM_ASSINATURA")
+          setBlockStatus(status)
+          setBlockMode("invalid_status")
+          return
+        }
+
         toast.error("Falha no login", {
           description: payload?.error || payload?.motivo || "Nao foi possivel autenticar.",
         })
@@ -118,6 +152,57 @@ function LoginPageContent() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={blockMode !== null} onOpenChange={(open) => !open && setBlockMode(null)}>
+        <DialogContent>
+          {blockMode === "not_found" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Acesso não liberado</DialogTitle>
+                <DialogDescription>
+                  Vi aqui que você não está registrado na nossa base. Para acessar o sistema Inteligência Pecuária faça sua assinatura agora.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="sm:justify-start">
+                <Button asChild className="w-full sm:w-auto">
+                  <Link href={OFFER_URL} target="_blank" rel="noreferrer">
+                    Fazer assinatura agora
+                  </Link>
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Assinatura pendente de regularização</DialogTitle>
+                <DialogDescription>
+                  Localizamos seu cadastro mas sua assinatura está <strong>{blockStatus}</strong>.
+                </DialogDescription>
+                <DialogDescription>
+                  Para renovar, toque no botão abaixo.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="sm:justify-start">
+                <div className="w-full space-y-3">
+                  <Button asChild className="w-full sm:w-auto">
+                    <Link href={OFFER_URL} target="_blank" rel="noreferrer">
+                      Renovar assinatura
+                    </Link>
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Caso a sua assinatura esteja em dia, fale com o suporte:
+                  </p>
+                  <Button asChild variant="outline" className="w-full sm:w-auto">
+                    <Link href={SUPPORT_URL} target="_blank" rel="noreferrer">
+                      Suporte via WhatsApp
+                    </Link>
+                  </Button>
+                </div>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { Beef, Wheat, Bean, Activity, ArrowUpRight, ArrowDownRight, Globe2, GitBranch } from "lucide-react"
+import { Beef, Wheat, Bean, ArrowUpRight, ArrowDownRight, Globe2, GitBranch } from "lucide-react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Line } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -42,7 +42,6 @@ export default function DashboardPage() {
         previousPrices,
         getRelacaoTroca,
         globalDateRange,
-        alertas,
         cicloPecuario,
         exportacaoResumo,
     } = useData()
@@ -50,8 +49,6 @@ export default function DashboardPage() {
     const chartData = useMemo(() => {
         return getRelacaoTroca(globalDateRange, 'day')
     }, [getRelacaoTroca, globalDateRange])
-
-    const activeAlerts = alertas.filter(a => a.ativo).length
 
     const latestCicloBrasil = useMemo(
         () => [...cicloPecuario]
@@ -270,17 +267,6 @@ export default function DashboardPage() {
                                 )
                             })}
 
-                            <div className="pt-2 mt-2">
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/10">
-                                    <div className="flex items-center gap-2">
-                                        <Activity className="size-4 text-primary" />
-                                        <span className="text-sm font-medium">Alertas Ativos</span>
-                                    </div>
-                                    <Badge variant="secondary" className="bg-primary/10 text-primary border-0 font-bold">
-                                        {activeAlerts}
-                                    </Badge>
-                                </div>
-                            </div>
                         </CardContent>
                     </Card>
                 </div>
