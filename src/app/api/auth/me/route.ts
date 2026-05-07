@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       usuario_id: session.userId,
       email: session.email,
       nome: session.nome,
+      tier: session.tier,
     },
   })
 }

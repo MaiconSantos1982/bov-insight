@@ -7,6 +7,7 @@ type SessionPayload = {
   userId: string
   email: string
   nome: string | null
+  tier: "FREE" | "PRO" | "SUPER_ADMIN"
   exp: number
 }
 
@@ -38,12 +39,14 @@ export function createSessionToken(user: {
   userId: string
   email: string
   nome: string | null
+  tier: "FREE" | "PRO" | "SUPER_ADMIN"
 }): { token: string; expiresAtEpoch: number; maxAge: number } {
   const exp = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
   const payload: SessionPayload = {
     userId: user.userId,
     email: user.email,
     nome: user.nome,
+    tier: user.tier,
     exp,
   }
 
@@ -73,7 +76,7 @@ export function verifySessionToken(token: string | null | undefined): SessionPay
   try {
     const decoded = base64UrlDecode(encoded)
     const payload = JSON.parse(decoded) as SessionPayload
-    if (!payload?.userId || !payload?.email || !payload?.exp) return null
+    if (!payload?.userId || !payload?.email || !payload?.exp || !payload?.tier) return null
     const now = Math.floor(Date.now() / 1000)
     if (payload.exp < now) return null
     return payload

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 import { checkAccessByEmail, normalizeEmail } from "@/lib/auth/access-check"
 import { AUTH_COOKIE_NAME, createSessionToken } from "@/lib/auth/session"
 
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic"
 
 type LoginBody = {
   email?: string
+  password?: string
 }
 
 export async function POST(request: Request) {
@@ -22,6 +24,36 @@ export async function POST(request: Request) {
   const email = normalizeEmail(body.email)
   if (!email) {
     const response = NextResponse.json({ ok: false, error: "Email inválido." }, { status: 400 })
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    return response
+  }
+  const password = String(body.password || "")
+  if (password.length < 6) {
+    const response = NextResponse.json({ ok: false, error: "Senha inválida." }, { status: 400 })
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    return response
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ""
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  if (!supabaseUrl || !supabaseAnonKey) {
+    const response = NextResponse.json({ ok: false, error: "Configuração de autenticação ausente." }, { status: 500 })
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    return response
+  }
+
+  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data: signInData, error: signInError } = await authClient.auth.signInWithPassword({
+    email,
+    password,
+  })
+  if (signInError || !signInData.user) {
+    const response = NextResponse.json(
+      { ok: false, error: "Email ou senha inválidos.", motivo: "CREDENCIAIS_INVALIDAS" },
+      { status: 401 }
+    )
     response.cookies.delete(AUTH_COOKIE_NAME)
     return response
   }
@@ -47,6 +79,8 @@ export async function POST(request: Request) {
         ok: false,
         error: "Acesso não liberado para este email.",
         motivo: access.result.motivo,
+        tier: access.result.tier,
+        assinatura: access.result.assinatura,
         fonte_busca: access.result.fonte_busca,
       },
       { status: 403 }
@@ -59,11 +93,13 @@ export async function POST(request: Request) {
     userId: access.result.usuario.usuario_id,
     email,
     nome: access.result.usuario.nome,
+    tier: access.result.tier,
   })
 
   const response = NextResponse.json({
     ok: true,
     allowed: true,
+    tier: access.result.tier,
     usuario: access.result.usuario,
     assinatura: access.result.assinatura,
   })

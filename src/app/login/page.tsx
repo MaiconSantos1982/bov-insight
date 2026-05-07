@@ -28,6 +28,12 @@ function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [mode, setMode] = useState<"login" | "signup">("login")
+  const [signupNome, setSignupNome] = useState("")
+  const [signupEmail, setSignupEmail] = useState("")
+  const [signupPassword, setSignupPassword] = useState("")
+  const [signupWhatsapp, setSignupWhatsapp] = useState("")
   const [loading, setLoading] = useState(false)
   const [blockMode, setBlockMode] = useState<LoginBlockMode>(null)
   const [blockStatus, setBlockStatus] = useState<string>("")
@@ -55,7 +61,7 @@ function LoginPageContent() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       })
       const payload = await response.json()
 
@@ -93,6 +99,36 @@ function LoginPageContent() {
     }
   }
 
+  async function onSignupSubmit(event: FormEvent) {
+    event.preventDefault()
+    setLoading(true)
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: signupNome,
+          email: signupEmail,
+          password: signupPassword,
+          telefone_whatsapp: signupWhatsapp,
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.ok) {
+        toast.error("Falha no cadastro", {
+          description: payload?.error || "Nao foi possivel concluir seu cadastro.",
+        })
+        return
+      }
+      toast.success("Cadastro concluido")
+      window.location.href = next
+    } catch {
+      toast.error("Falha no cadastro", { description: "Erro de rede ao cadastrar." })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden lg:flex flex-col justify-between p-10 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-700 text-white">
@@ -120,35 +156,114 @@ function LoginPageContent() {
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="space-y-2">
             <CardTitle className="text-2xl">Entrar na plataforma</CardTitle>
-            <CardDescription>Use o email da sua assinatura para acessar o Inteligência Pecuária.</CardDescription>
+            <CardDescription>
+              Acesse com seu cadastro ou crie uma conta para usar o plano gratuito (Cotações).
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="voce@empresa.com"
-                  autoComplete="email"
-                  required
-                />
-              </div>
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Validando..." : "Entrar"}
+            <div className="mb-4 grid grid-cols-2 rounded-md border p-1">
+              <Button type="button" variant={mode === "login" ? "default" : "ghost"} onClick={() => setMode("login")}>
+                Entrar
               </Button>
+              <Button type="button" variant={mode === "signup" ? "default" : "ghost"} onClick={() => setMode("signup")}>
+                Cadastrar
+              </Button>
+            </div>
 
-              <p className="text-xs text-muted-foreground text-center">
-                Dificuldades para acessar? Fale com o suporte em{" "}
-                <Link href="https://wa.me/5551992049514" className="text-primary hover:underline" target="_blank">
-                  WhatsApp
-                </Link>
-                .
-              </p>
-            </form>
+            {mode === "login" ? (
+              <form onSubmit={onSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="voce@empresa.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Sua senha"
+                    autoComplete="current-password"
+                    required
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Validando..." : "Entrar"}
+                </Button>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  Dificuldades para acessar? Fale com o suporte em{" "}
+                  <Link href={SUPPORT_URL} className="text-primary hover:underline" target="_blank">
+                    WhatsApp
+                  </Link>
+                  .
+                </p>
+              </form>
+            ) : (
+              <form onSubmit={onSignupSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-nome">Nome</Label>
+                  <Input
+                    id="signup-nome"
+                    value={signupNome}
+                    onChange={(e) => setSignupNome(e.target.value)}
+                    placeholder="Seu nome"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    placeholder="voce@empresa.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-whatsapp">WhatsApp</Label>
+                  <Input
+                    id="signup-whatsapp"
+                    type="tel"
+                    value={signupWhatsapp}
+                    onChange={(e) => setSignupWhatsapp(e.target.value)}
+                    placeholder="+55 11 99999-9999"
+                    autoComplete="tel"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Senha</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    autoComplete="new-password"
+                    minLength={6}
+                    required
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Criando conta..." : "Criar conta"}
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

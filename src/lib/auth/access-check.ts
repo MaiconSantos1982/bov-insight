@@ -6,6 +6,7 @@ export type AssinaturaStatus = "ATIVA" | "TRIAL" | "INADIMPLENTE" | "CANCELADA" 
 export type AccessResult = {
   allowed: boolean
   motivo: string
+  tier: "FREE" | "PRO" | "SUPER_ADMIN"
   fonte_busca: "perfil" | "view_admin_assinantes" | "super_admin" | "nao_encontrado"
   usuario: {
     usuario_id: string
@@ -155,6 +156,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
         result: {
           allowed: true,
           motivo: "SUPER_ADMIN_ALLOWLIST",
+          tier: "SUPER_ADMIN",
           fonte_busca: "super_admin",
           usuario: {
             usuario_id: superAdminUserId,
@@ -172,6 +174,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
       result: {
         allowed: false,
         motivo: "USUARIO_NAO_ENCONTRADO",
+        tier: "FREE",
         fonte_busca: "nao_encontrado",
         usuario: null,
         assinatura: null,
@@ -197,7 +200,17 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
     )
 
   const bestStatus = pickBestStatus(statuses)
-  const allowed = superAdmin || bestStatus === "ATIVA" || bestStatus === "TRIAL"
+  const planoRef = String(
+    (
+      rows.find((item) => item.status === "ATIVA") ||
+      rows.find((item) => item.status === "TRIAL") ||
+      rows[0] ||
+      { plano: "" }
+    ).plano || ""
+  ).toUpperCase()
+  const isFreePlan = planoRef === "FREE" || planoRef === "GRATUITO"
+  const allowed = superAdmin || isFreePlan || bestStatus === "ATIVA" || bestStatus === "TRIAL"
+  const tier: AccessResult["tier"] = superAdmin ? "SUPER_ADMIN" : isFreePlan ? "FREE" : "PRO"
 
   const assinaturaRef =
     rows.find((item) => item.status === "ATIVA") ||
@@ -209,6 +222,7 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
     ok: true,
     result: {
       allowed,
+      tier,
       fonte_busca: superAdmin ? "super_admin" : fonteBusca,
       usuario,
       assinatura: assinaturaRef
@@ -221,6 +235,8 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
         : null,
       motivo: superAdmin
         ? "SUPER_ADMIN_ALLOWLIST"
+        : isFreePlan
+          ? "ACESSO_FREE"
         : allowed
           ? "ACESSO_LIBERADO"
           : bestStatus
