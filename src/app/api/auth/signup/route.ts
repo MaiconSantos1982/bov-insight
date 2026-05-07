@@ -65,33 +65,6 @@ export async function POST(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
-  const { data: existingAuthUser, error: existingAuthUserError } = await adminClient
-    .schema("auth")
-    .from("users")
-    .select("id,email")
-    .ilike("email", email)
-    .limit(1)
-    .maybeSingle()
-
-  if (existingAuthUserError) {
-    const response = NextResponse.json({ ok: false, error: existingAuthUserError.message }, { status: 500 })
-    response.cookies.delete(AUTH_COOKIE_NAME)
-    return response
-  }
-
-  if (existingAuthUser?.id) {
-    const response = NextResponse.json(
-      {
-        ok: false,
-        error: "Este email já está cadastrado. Faça login ou use 'Esqueci minha senha'.",
-        motivo: "EMAIL_JA_CADASTRADO_AUTH",
-      },
-      { status: 409 }
-    )
-    response.cookies.delete(AUTH_COOKIE_NAME)
-    return response
-  }
-
   const { data: existingPerfil, error: existingPerfilError } = await adminClient
     .from("boigordo_usuarios_perfil")
     .select("usuario_id,email")
@@ -112,6 +85,20 @@ export async function POST(request: Request) {
     user_metadata: { nome },
   })
   if (createError || !created.user?.id) {
+    const createMessage = String(createError?.message || "").toLowerCase()
+    if (createMessage.includes("already") || createMessage.includes("registered") || createMessage.includes("exists")) {
+      const response = NextResponse.json(
+        {
+          ok: false,
+          error: "Este email já está cadastrado. Faça login ou use 'Esqueci minha senha'.",
+          motivo: "EMAIL_JA_CADASTRADO_AUTH",
+        },
+        { status: 409 }
+      )
+      response.cookies.delete(AUTH_COOKIE_NAME)
+      return response
+    }
+
     const response = NextResponse.json(
       { ok: false, error: createError?.message || "Falha ao criar usuário." },
       { status: 500 }
