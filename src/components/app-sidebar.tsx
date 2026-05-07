@@ -166,7 +166,11 @@ export function AppSidebar() {
         usuarioConfiguracao?.nome?.trim() ||
         authUser?.email ||
         'Usuário'
-    const planLabel = isSuperAdmin ? 'Super Admin' : 'Plano Assinante'
+    const planLabel = isSuperAdmin
+        ? 'Super Admin'
+        : authUser?.tier === 'FREE'
+            ? 'Plano Gratuito'
+            : 'Plano Assinante'
     const initials = getInitials(displayName)
 
     async function handleLogout() {
