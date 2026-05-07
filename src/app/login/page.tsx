@@ -185,7 +185,8 @@ function LoginPageContent() {
         return
       }
       toast.success("Cadastro concluido")
-      window.location.href = next
+      const destination = payload?.tier === "FREE" ? "/cotacoes" : next
+      window.location.href = destination
     } catch {
       toast.error("Falha no cadastro", { description: "Erro de rede ao cadastrar." })
     } finally {
