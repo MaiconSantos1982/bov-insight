@@ -24,6 +24,33 @@ const SUPPORT_URL = `https://wa.me/5551992049514?text=${encodeURIComponent(SUPPO
 
 type LoginBlockMode = "not_found" | "invalid_status" | null
 
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, "")
+}
+
+function normalizeWhatsappDigits(value: string): string {
+  const digits = onlyDigits(value)
+  if (digits.startsWith("55")) return digits.slice(2, 13)
+  return digits.slice(0, 11)
+}
+
+function formatWhatsapp(value: string): string {
+  const digits = normalizeWhatsappDigits(value)
+  const ddd = digits.slice(0, 2)
+  const partA = digits.length > 10 ? digits.slice(2, 7) : digits.slice(2, 6)
+  const partB = digits.length > 10 ? digits.slice(7, 11) : digits.slice(6, 10)
+
+  if (!ddd) return ""
+  if (!partA) return `(${ddd}`
+  if (!partB) return `(${ddd}) ${partA}`
+  return `(${ddd}) ${partA}-${partB}`
+}
+
+function isWhatsappValid(value: string): boolean {
+  const digits = normalizeWhatsappDigits(value)
+  return digits.length === 10 || digits.length === 11
+}
+
 function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -132,6 +159,13 @@ function LoginPageContent() {
   async function onSignupSubmit(event: FormEvent) {
     event.preventDefault()
     setLoading(true)
+    if (!isWhatsappValid(signupWhatsapp)) {
+      toast.error("Falha no cadastro", {
+        description: "Informe um WhatsApp válido com DDD, ex: (11) 99999-9999.",
+      })
+      setLoading(false)
+      return
+    }
     try {
       const response = await fetch("/api/auth/signup", {
         method: "POST",
@@ -273,9 +307,10 @@ function LoginPageContent() {
                     id="signup-whatsapp"
                     type="tel"
                     value={signupWhatsapp}
-                    onChange={(e) => setSignupWhatsapp(e.target.value)}
-                    placeholder="+55 11 99999-9999"
-                    autoComplete="tel"
+                    onChange={(e) => setSignupWhatsapp(formatWhatsapp(e.target.value))}
+                    placeholder="(11) 99999-9999"
+                    inputMode="numeric"
+                    maxLength={15}
                     required
                   />
                 </div>
