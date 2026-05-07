@@ -65,17 +65,42 @@ export async function POST(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
-  const existingAccess = await checkAccessByEmail(email)
-  if (!existingAccess.ok) {
-    const response = NextResponse.json({ ok: false, error: existingAccess.error }, { status: 500 })
+  const { data: existingAuthUser, error: existingAuthUserError } = await adminClient
+    .schema("auth")
+    .from("users")
+    .select("id,email")
+    .ilike("email", email)
+    .limit(1)
+    .maybeSingle()
+
+  if (existingAuthUserError) {
+    const response = NextResponse.json({ ok: false, error: existingAuthUserError.message }, { status: 500 })
     response.cookies.delete(AUTH_COOKIE_NAME)
     return response
   }
-  if (existingAccess.result.usuario?.usuario_id) {
+
+  if (existingAuthUser?.id) {
     const response = NextResponse.json(
-      { ok: false, error: "Este email já está cadastrado. Faça login." },
+      {
+        ok: false,
+        error: "Este email já está cadastrado. Faça login ou use 'Esqueci minha senha'.",
+        motivo: "EMAIL_JA_CADASTRADO_AUTH",
+      },
       { status: 409 }
     )
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    return response
+  }
+
+  const { data: existingPerfil, error: existingPerfilError } = await adminClient
+    .from("boigordo_usuarios_perfil")
+    .select("usuario_id,email")
+    .ilike("email", email)
+    .limit(1)
+    .maybeSingle()
+
+  if (existingPerfilError) {
+    const response = NextResponse.json({ ok: false, error: existingPerfilError.message }, { status: 500 })
     response.cookies.delete(AUTH_COOKIE_NAME)
     return response
   }
@@ -96,6 +121,34 @@ export async function POST(request: Request) {
   }
 
   const usuarioId = created.user.id
+  const previousUsuarioId = existingPerfil?.usuario_id ? String(existingPerfil.usuario_id) : null
+
+  if (previousUsuarioId && previousUsuarioId !== usuarioId) {
+    const migrateTables = [
+      "boigordo_assinaturas",
+      "boigordo_alertas_pro_destinos",
+      "boigordo_alertas_pro_regras",
+      "boigordo_alertas_pro_envios",
+      "boigordo_pagamentos_historico",
+      "boigordo_billing_eventos",
+    ]
+
+    for (const table of migrateTables) {
+      const { error: migrateError } = await adminClient
+        .from(table)
+        .update({ usuario_id: usuarioId })
+        .eq("usuario_id", previousUsuarioId)
+      if (migrateError) {
+        console.warn(`[auth:signup] falha ao migrar tabela ${table}`, {
+          email,
+          previousUsuarioId,
+          usuarioId,
+          error: migrateError.message,
+        })
+      }
+    }
+  }
+
   const { error: perfilError } = await adminClient.from("boigordo_usuarios_perfil").upsert(
     {
       usuario_id: usuarioId,
@@ -178,4 +231,3 @@ export async function POST(request: Request) {
   })
   return response
 }
-
