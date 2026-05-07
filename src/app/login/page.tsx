@@ -35,6 +35,7 @@ function LoginPageContent() {
   const [signupPassword, setSignupPassword] = useState("")
   const [signupWhatsapp, setSignupWhatsapp] = useState("")
   const [loading, setLoading] = useState(false)
+  const [recovering, setRecovering] = useState(false)
   const [blockMode, setBlockMode] = useState<LoginBlockMode>(null)
   const [blockStatus, setBlockStatus] = useState<string>("")
 
@@ -85,7 +86,7 @@ function LoginPageContent() {
         }
 
         toast.error("Falha no login", {
-          description: payload?.error || payload?.motivo || "Nao foi possivel autenticar.",
+          description: payload?.hint || payload?.error || payload?.motivo || "Nao foi possivel autenticar.",
         })
         return
       }
@@ -96,6 +97,35 @@ function LoginPageContent() {
       toast.error("Falha no login", { description: "Erro de rede ao autenticar." })
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function onForgotPassword() {
+    if (!email.trim()) {
+      toast.error("Recuperação de senha", { description: "Informe seu email para receber o link de recuperação." })
+      return
+    }
+    setRecovering(true)
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.ok) {
+        toast.error("Recuperação de senha", {
+          description: payload?.details || payload?.error || "Não foi possível enviar o link.",
+        })
+        return
+      }
+      toast.success("Recuperação de senha", {
+        description: "Se o email existir, você receberá o link de redefinição.",
+      })
+    } catch {
+      toast.error("Recuperação de senha", { description: "Erro de rede ao solicitar recuperação." })
+    } finally {
+      setRecovering(false)
     }
   }
 
@@ -199,6 +229,10 @@ function LoginPageContent() {
 
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Validando..." : "Entrar"}
+                </Button>
+
+                <Button type="button" variant="link" className="h-auto w-full p-0 text-xs" onClick={onForgotPassword} disabled={recovering}>
+                  {recovering ? "Enviando recuperação..." : "Esqueci minha senha"}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">

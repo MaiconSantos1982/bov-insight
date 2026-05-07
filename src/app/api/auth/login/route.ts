@@ -11,6 +11,16 @@ type LoginBody = {
   password?: string
 }
 
+function envMismatchHint() {
+  const publicUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim()
+  const serverUrl = (process.env.SUPABASE_URL || "").trim()
+  if (!publicUrl || !serverUrl) return null
+  if (publicUrl !== serverUrl) {
+    return "Ambiente com URLs diferentes: NEXT_PUBLIC_SUPABASE_URL e SUPABASE_URL devem apontar para o mesmo projeto."
+  }
+  return null
+}
+
 export async function POST(request: Request) {
   let body: LoginBody
   try {
@@ -50,8 +60,24 @@ export async function POST(request: Request) {
     password,
   })
   if (signInError || !signInData.user) {
+    const mismatch = envMismatchHint()
+    const authCode = String((signInError as { code?: string } | null)?.code || "")
+    const authMessage = String(signInError?.message || "")
+    const likelyInvalid = authCode === "invalid_credentials" || /invalid login credentials/i.test(authMessage)
+    const hint = mismatch
+      ? mismatch
+      : likelyInvalid
+        ? "Verifique email/senha ou redefina a senha em 'Esqueci minha senha'. Se persistir, confirme se o usuário foi criado neste mesmo projeto Supabase."
+        : authMessage || "Falha na autenticação do Supabase."
+
     const response = NextResponse.json(
-      { ok: false, error: "Email ou senha inválidos.", motivo: "CREDENCIAIS_INVALIDAS" },
+      {
+        ok: false,
+        error: "Email ou senha inválidos.",
+        motivo: "CREDENCIAIS_INVALIDAS",
+        auth_code: authCode || null,
+        hint,
+      },
       { status: 401 }
     )
     response.cookies.delete(AUTH_COOKIE_NAME)
