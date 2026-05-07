@@ -136,20 +136,6 @@ export async function checkAccessByEmail(email: string): Promise<{ ok: true; res
   if (!usuario?.usuario_id) {
     if (isSuperAdminEmail(email)) {
       const superAdminUserId = stableUuidFromEmail(email)
-      await client.from("boigordo_usuarios_perfil").upsert(
-        {
-          usuario_id: superAdminUserId,
-          nome: "Super Admin",
-          email,
-          telefone_whatsapp: "+5551992049514",
-          status: "ATIVO",
-          papeis_mercado: [],
-          etapas_operacao: [],
-          dados_questionario: {},
-          observacoes: "Usuário liberado por SUPER_ADMIN_EMAILS.",
-        },
-        { onConflict: "usuario_id" }
-      )
 
       return {
         ok: true,
