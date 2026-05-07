@@ -7,6 +7,8 @@ const PUBLIC_PATHS = [
   "/lista-espera",
   "/api/lista-espera",
   "/api/auth/login",
+  "/api/auth/signup",
+  "/api/auth/forgot-password",
   "/api/auth/logout",
   "/api/auth/me",
   "/api/auth/consulta-acesso",
