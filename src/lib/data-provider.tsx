@@ -50,6 +50,7 @@ export interface AuthUser {
     usuario_id: string
     email: string
     nome: string | null
+    tier?: "FREE" | "PRO" | "SUPER_ADMIN"
 }
 
 interface DataContextType {
@@ -200,7 +201,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 try {
                     const authMeRes = await fetch('/api/auth/me', { cache: 'no-store' })
                     if (authMeRes.ok) {
-                        const authMeJson = await authMeRes.json() as { ok: boolean; user?: { usuario_id?: string; email?: string; nome?: string | null } }
+                        const authMeJson = await authMeRes.json() as { ok: boolean; user?: { usuario_id?: string; email?: string; nome?: string | null; tier?: "FREE" | "PRO" | "SUPER_ADMIN" } }
                         sessionUserId = authMeJson?.user?.usuario_id || null
                         sessionUserEmail = authMeJson?.user?.email?.toLowerCase() || null
                         if (sessionUserId && sessionUserEmail) {
@@ -208,6 +209,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                                 usuario_id: sessionUserId,
                                 email: sessionUserEmail,
                                 nome: authMeJson?.user?.nome || null,
+                                tier: authMeJson?.user?.tier,
                             })
                         } else {
                             setAuthUser(null)

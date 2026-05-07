@@ -25,6 +25,7 @@ import {
     Table2,
     ListChecks,
     LogOut,
+    Lock,
 } from 'lucide-react'
 import {
     Sidebar,
@@ -152,6 +153,7 @@ export function AppSidebar() {
     const router = useRouter()
     const { setOpenMobile } = useSidebar()
     const { authUser, usuarioConfiguracao, isSuperAdmin } = useData()
+    const isFreeUser = authUser?.tier === 'FREE'
     const resolvedMenuItems = menuItems.filter((item) => {
         if ((item.href === '/alertas' || item.href === '/relatorios') && !isSuperAdmin) {
             return false
@@ -213,8 +215,14 @@ export function AppSidebar() {
                                         <Link href={item.href}>
                                             <item.icon />
                                             <span>{item.label}</span>
+                                            {isFreeUser && item.href !== '/cotacoes' && (
+                                                <Lock className="ml-auto size-3.5 text-muted-foreground" />
+                                            )}
                                             {item.badge && (
-                                                <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0 bg-primary/10 text-primary">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={`text-[10px] px-1.5 py-0 bg-primary/10 text-primary ${isFreeUser && item.href !== '/cotacoes' ? 'ml-1' : 'ml-auto'}`}
+                                                >
                                                     {item.badge}
                                                 </Badge>
                                             )}
