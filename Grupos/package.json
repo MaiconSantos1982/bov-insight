@@ -16,7 +16,9 @@
     "build": "tsc",
     "postinstall": "npx playwright install chromium",
     "start:prod": "node dist/index.js",
-    "force:prod": "node dist/index.js --force"
+    "force:prod": "node dist/index.js --force",
+    "job:historico": "node jobs/historico.js",
+    "job:disparo": "node jobs/disparo.js"
   },
   "keywords": [
     "scraping",
