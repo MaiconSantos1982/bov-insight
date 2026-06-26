@@ -82,6 +82,12 @@ const menuItems = [
         icon: Landmark,
     },
     {
+        label: 'Compra e Venda',
+        href: '/calculadora-compra-venda',
+        icon: LineChart,
+        badge: 'PRO',
+    },
+    {
         label: 'Mercado Futuro',
         href: '/mercado-futuro',
         icon: TrendingUp,
