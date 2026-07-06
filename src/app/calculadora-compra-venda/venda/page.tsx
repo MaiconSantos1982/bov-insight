@@ -366,6 +366,7 @@ export default function CalculadoraVendaPage() {
             </div>
 
             <NumberField label="Quantidade cabeças" value={form.quantity} onChange={(v) => updateField("quantity", v)} />
+            <CurrencyField label="Custo de aquisição (cabeça)" value={form.purchasePricePerHead} onChange={(v) => updateField("purchasePricePerHead", v)} />
             <NumberField label="Peso médio inicial (kg)" value={form.currentWeightKg} onChange={(v) => updateField("currentWeightKg", v)} />
             <NumberField label="GMD (kg/dia)" value={form.gmdKgDay} onChange={(v) => updateField("gmdKgDay", v)} step={0.1} />
             <NumberField label="Rendimento de carcaça" value={form.carcassYield} onChange={(v) => updateField("carcassYield", v)} step={0.01} />
