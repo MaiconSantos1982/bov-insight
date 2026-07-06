@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { AlertTriangle, CheckCircle2, CircleHelp, FileDown, Save } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { PageHeader } from "@/components/page-header"
 import { useData } from "@/lib/data-provider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -193,9 +194,9 @@ export default function CalculadoraCompraPage() {
             <CardDescription>Identificação e localização do lote.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <TextField label="Nome do lote" value={form.lotName} onChange={(v) => setForm((p) => ({ ...p, lotName: v }))} />
+            <TextField label="Nome do lote" helpText="Identificação interna do lote que você planeja comprar." value={form.lotName} onChange={(v) => setForm((p) => ({ ...p, lotName: v }))} />
             <div className="space-y-2">
-              <FieldLabel label="Categoria" />
+              <FieldLabel label="Categoria" helpText="Tipo de animal (Boi gordo, vaca ou bezerro)." />
               <Select value={form.category} onValueChange={(v) => setForm((p) => ({ ...p, category: v as Category }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -206,7 +207,7 @@ export default function CalculadoraCompraPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <FieldLabel label="UF" />
+              <FieldLabel label="UF" helpText="Estado da negociação." />
               <Select value={form.uf} onValueChange={(v) => setForm((p) => ({ ...p, uf: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -217,7 +218,7 @@ export default function CalculadoraCompraPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <FieldLabel label="Praça" />
+              <FieldLabel label="Praça" helpText="Região de referência da cotação para a compra." />
               <Select value={form.praca} onValueChange={(v) => setForm((p) => ({ ...p, praca: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
@@ -236,14 +237,14 @@ export default function CalculadoraCompraPage() {
             <CardDescription>Parâmetros físicos e preços de referência.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <NumberField label="Quantidade cabeças" value={form.quantity} onChange={(v) => setForm((p) => ({ ...p, quantity: v }))} />
-            <NumberField label="Dias até compra" value={form.targetDays} onChange={(v) => setForm((p) => ({ ...p, targetDays: v }))} />
-            <NumberField label="Peso médio inicial (kg)" value={form.currentWeightKg} onChange={(v) => setForm((p) => ({ ...p, currentWeightKg: v }))} />
-            <NumberField label="GMD esperado (kg/dia)" value={form.expectedGmdKgDay} onChange={(v) => setForm((p) => ({ ...p, expectedGmdKgDay: v }))} step={0.1} />
-            <NumberField label="Rendimento carcaça esperado" value={form.expectedCarcassYield} onChange={(v) => setForm((p) => ({ ...p, expectedCarcassYield: v }))} step={0.01} />
-            <ReadOnlyField label="Preço de mercado atual por @" value={formatCurrency(marketPricePerArroba)} />
-            <CurrencyField label="Preço para comprar agora (@)" value={effectiveCurrentPrice} onChange={(v) => setForm((p) => ({ ...p, currentPricePerArroba: v }))} />
-            <CurrencyField label="Preço esperado futuro (@)" value={effectiveExpectedPrice} onChange={(v) => setForm((p) => ({ ...p, expectedPricePerArroba: v }))} />
+            <NumberField label="Quantidade cabeças" helpText="Total de animais que deseja comprar." value={form.quantity} onChange={(v) => setForm((p) => ({ ...p, quantity: v }))} />
+            <NumberField label="Dias até compra" helpText="Período que você está cogitando esperar (ex: comprar daqui a 60 dias)." value={form.targetDays} onChange={(v) => setForm((p) => ({ ...p, targetDays: v }))} />
+            <NumberField label="Peso médio inicial (kg)" helpText="Peso vivo estimado do animal no momento da compra." value={form.currentWeightKg} onChange={(v) => setForm((p) => ({ ...p, currentWeightKg: v }))} />
+            <NumberField label="GMD esperado (kg/dia)" helpText="Quantos quilos o animal ganharia por dia se você comprasse hoje e alojasse." value={form.expectedGmdKgDay} onChange={(v) => setForm((p) => ({ ...p, expectedGmdKgDay: v }))} step={0.1} />
+            <NumberField label="Rendimento carcaça esperado" helpText="Estimativa de rendimento do animal para o cálculo em arrobas." value={form.expectedCarcassYield} onChange={(v) => setForm((p) => ({ ...p, expectedCarcassYield: v }))} step={0.01} />
+            <ReadOnlyField label="Preço de mercado atual por @" helpText="Valor de referência atual baseado na praça." value={formatCurrency(marketPricePerArroba)} />
+            <CurrencyField label="Preço para comprar agora (@)" helpText="Sua oferta para fechar negócio hoje. Altere se necessário." value={effectiveCurrentPrice} onChange={(v) => setForm((p) => ({ ...p, currentPricePerArroba: v }))} />
+            <CurrencyField label="Preço esperado futuro (@)" helpText="Qual preço da arroba você aposta que estará vigente após o período de espera." value={effectiveExpectedPrice} onChange={(v) => setForm((p) => ({ ...p, expectedPricePerArroba: v }))} />
           </CardContent>
         </Card>
 
@@ -252,10 +253,10 @@ export default function CalculadoraCompraPage() {
             <CardTitle>Custos da Compra</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <CurrencyField label="Frete" value={form.freightPerHead} onChange={(v) => setForm((p) => ({ ...p, freightPerHead: v }))} />
-            <CurrencyField label="Imposto" value={form.taxesPerHead} onChange={(v) => setForm((p) => ({ ...p, taxesPerHead: v }))} />
-            <NumberField label="Comissão" value={form.commissionPercent} onChange={(v) => setForm((p) => ({ ...p, commissionPercent: v }))} step={0.001} />
-            <NumberField label="Custo capital" value={form.capitalCostMonthlyPercent} onChange={(v) => setForm((p) => ({ ...p, capitalCostMonthlyPercent: v }))} step={0.001} />
+            <CurrencyField label="Frete" helpText="Estimativa de gasto com frete por cabeça na compra." value={form.freightPerHead} onChange={(v) => setForm((p) => ({ ...p, freightPerHead: v }))} />
+            <CurrencyField label="Imposto" helpText="Impostos incidentes por cabeça na transação de compra." value={form.taxesPerHead} onChange={(v) => setForm((p) => ({ ...p, taxesPerHead: v }))} />
+            <NumberField label="Comissão" helpText="Porcentagem de comissão ao intermediário da compra." value={form.commissionPercent} onChange={(v) => setForm((p) => ({ ...p, commissionPercent: v }))} step={0.001} />
+            <NumberField label="Custo capital" helpText="Custo de oportunidade (% ao mês) sobre o valor que será aplicado na compra." value={form.capitalCostMonthlyPercent} onChange={(v) => setForm((p) => ({ ...p, capitalCostMonthlyPercent: v }))} step={0.001} />
           </CardContent>
         </Card>
 
@@ -303,41 +304,52 @@ export default function CalculadoraCompraPage() {
   )
 }
 
-function FieldLabel({ label }: { label: string }) {
+function FieldLabel({ label, helpText }: { label: string; helpText?: string }) {
   return (
     <div className="flex items-center gap-2">
       <Label>{label}</Label>
-      <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => window.alert("Em breve: conteúdo de apoio (Paranoia de Oferta).")}> 
-        <CircleHelp className="size-4 text-muted-foreground" />
-      </Button>
+      {helpText && (
+        <TooltipProvider>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="h-6 w-6">
+                <CircleHelp className="size-4 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-center">
+              <p>{helpText}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   )
 }
 
-function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TextField({ label, value, onChange, helpText }: { label: string; value: string; onChange: (value: string) => void; helpText?: string }) {
   return (
     <div className="space-y-2">
-      <FieldLabel label={label} />
+      <FieldLabel label={label} helpText={helpText} />
       <Input value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   )
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
+function ReadOnlyField({ label, value, helpText }: { label: string; value: string; helpText?: string }) {
   return (
     <div className="space-y-2">
-      <FieldLabel label={label} />
+      <FieldLabel label={label} helpText={helpText} />
       <Input value={value} readOnly className="bg-muted/40" />
     </div>
   )
 }
 
-function CurrencyField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+function CurrencyField({ label, value, onChange, helpText }: { label: string; value: number; onChange: (value: number) => void; helpText?: string }) {
   const [display, setDisplay] = useState(formatCurrencyMask(value))
 
   return (
     <div className="space-y-2">
-      <FieldLabel label={label} />
+      <FieldLabel label={label} helpText={helpText} />
       <Input
         inputMode="decimal"
         value={display}
@@ -356,10 +368,10 @@ function CurrencyField({ label, value, onChange }: { label: string; value: numbe
   )
 }
 
-function NumberField({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (value: number) => void; step?: number }) {
+function NumberField({ label, value, onChange, step = 1, helpText }: { label: string; value: number; onChange: (value: number) => void; step?: number; helpText?: string }) {
   return (
     <div className="space-y-2">
-      <FieldLabel label={label} />
+      <FieldLabel label={label} helpText={helpText} />
       <Input type="number" step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, CheckCircle2, CircleHelp, FileDown, Save } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { PageHeader } from "@/components/page-header"
 import { useData } from "@/lib/data-provider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -327,9 +328,9 @@ export default function CalculadoraVendaPage() {
             <CardDescription>Identificação e localização do lote.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <TextField label="Nome do lote" value={form.lotName} onChange={(v) => updateField("lotName", v)} />
+            <TextField label="Nome do lote" helpText="Identificação interna para o seu controle (ex: Lote Confinamento)." value={form.lotName} onChange={(v) => updateField("lotName", v)} />
             <div className="space-y-2">
-              <FieldLabel label="Categoria" />
+              <FieldLabel label="Categoria" helpText="Tipo de animal negociado. Afeta o rendimento de carcaça padrão e referência de preço." />
               <Select value={form.category} onValueChange={(v) => updateField("category", v as LivestockCategory)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -340,7 +341,7 @@ export default function CalculadoraVendaPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <FieldLabel label="UF" />
+              <FieldLabel label="UF" helpText="Estado usado para buscar as cotações atuais de mercado na base de dados." />
               <Select value={form.uf} onValueChange={(v) => updateField("uf", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -351,7 +352,7 @@ export default function CalculadoraVendaPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <FieldLabel label="Praça" />
+              <FieldLabel label="Praça" helpText="Região de referência da cotação do animal." />
               <Select value={form.praca} onValueChange={(v) => updateField("praca", v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
@@ -370,13 +371,13 @@ export default function CalculadoraVendaPage() {
             <CardDescription>Parâmetros físicos e preços de referência.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <NumberField label="Quantidade cabeças" value={form.quantity} onChange={(v) => updateField("quantity", v)} />
-            <CurrencyField label="Custo de aquisição (cabeça)" value={form.purchasePricePerHead} onChange={(v) => updateField("purchasePricePerHead", v)} />
-            <NumberField label="Peso médio inicial (kg)" value={form.currentWeightKg} onChange={(v) => updateField("currentWeightKg", v)} />
-            <NumberField label="GMD (kg/dia)" value={form.gmdKgDay} onChange={(v) => updateField("gmdKgDay", v)} step={0.1} />
-            <NumberField label="Rendimento de carcaça" value={form.carcassYield} onChange={(v) => updateField("carcassYield", v)} step={0.01} />
+            <NumberField label="Quantidade cabeças" helpText="Número de animais disponíveis no lote." value={form.quantity} onChange={(v) => updateField("quantity", v)} />
+            <CurrencyField label="Custo de aquisição (cabeça)" helpText="Valor pago inicialmente pelo animal. Afeta o Custo de Capital e o Payback." value={form.purchasePricePerHead} onChange={(v) => updateField("purchasePricePerHead", v)} />
+            <NumberField label="Peso médio inicial (kg)" helpText="Peso vivo atual do animal no curral." value={form.currentWeightKg} onChange={(v) => updateField("currentWeightKg", v)} />
+            <NumberField label="GMD (kg/dia)" helpText="Ganho Médio Diário (quantos quilos o animal ganha por dia)." value={form.gmdKgDay} onChange={(v) => updateField("gmdKgDay", v)} step={0.1} />
+            <NumberField label="Rendimento de carcaça" helpText="Percentual do peso vivo que se transforma em carne no frigorífico." value={form.carcassYield} onChange={(v) => updateField("carcassYield", v)} step={0.01} />
             <div className="space-y-2">
-              <FieldLabel label="Ciclo" />
+              <FieldLabel label="Ciclo" helpText="Período planejado para reter os animais antes da venda." />
               <Select value={form.cycle} onValueChange={(v) => updateField("cycle", v as FormState["cycle"])}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -386,10 +387,10 @@ export default function CalculadoraVendaPage() {
                 </SelectContent>
               </Select>
             </div>
-            <ReadOnlyField label="Preço atual médio por @" value={formatCurrency(currentCategoryPrice)} />
-            <ReadOnlyField label="Preço atual médio por animal" value={formatCurrency(scenarioToday.finalValuePerHeadToday)} />
+            <ReadOnlyField label="Preço atual médio por @" helpText="Cotação média atual da praça ou do indicador balcão." value={formatCurrency(currentCategoryPrice)} />
+            <ReadOnlyField label="Preço atual médio por animal" helpText="Valor de venda do animal hoje (receita bruta unitária se não reter)." value={formatCurrency(scenarioToday.finalValuePerHeadToday)} />
             <CurrencyField
-              label="Preço futuro por @ (simulação)"
+              label="Preço futuro por @ (simulação)" helpText="Expectativa de preço da arroba na data da venda futura. Altere para simular seu cenário."
               value={effectiveFutureArrobaPrice}
               onChange={(v) => {
                 setFuturePriceTouched(true)
@@ -405,11 +406,11 @@ export default function CalculadoraVendaPage() {
             <CardDescription>Custos operacionais e financeiros da retenção.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <CurrencyField label="Custo diário total (inclui sanidade)" value={form.dailyCostPerHead} onChange={(v) => updateField("dailyCostPerHead", v)} />
-            <NumberField label="Comissão" value={form.commissionPercent} onChange={(v) => updateField("commissionPercent", v)} step={0.001} />
-            <CurrencyField label="Frete" value={form.freightPerHead} onChange={(v) => updateField("freightPerHead", v)} />
-            <CurrencyField label="Imposto" value={form.taxesPerHead} onChange={(v) => updateField("taxesPerHead", v)} />
-            <NumberField label="Custo Capital" value={form.capitalCostMonthlyPercent} onChange={(v) => updateField("capitalCostMonthlyPercent", v)} step={0.001} />
+            <CurrencyField label="Custo diário total (inclui sanidade)" helpText="Gasto com nutrição, pasto e sanidade por dia por animal." value={form.dailyCostPerHead} onChange={(v) => updateField("dailyCostPerHead", v)} />
+            <NumberField label="Comissão" helpText="Porcentagem de comissão do corretor na venda." value={form.commissionPercent} onChange={(v) => updateField("commissionPercent", v)} step={0.001} />
+            <CurrencyField label="Frete" helpText="Custo de transporte por animal até o destino." value={form.freightPerHead} onChange={(v) => updateField("freightPerHead", v)} />
+            <CurrencyField label="Imposto" helpText="GTA, Funrural e outros tributos diretos por animal." value={form.taxesPerHead} onChange={(v) => updateField("taxesPerHead", v)} />
+            <NumberField label="Custo Capital" helpText="Taxa de oportunidade (ex: Selic) ao mês cobrada sobre o capital imobilizado." value={form.capitalCostMonthlyPercent} onChange={(v) => updateField("capitalCostMonthlyPercent", v)} step={0.001} />
           </CardContent>
         </Card>
 
@@ -568,42 +569,47 @@ export default function CalculadoraVendaPage() {
   )
 }
 
-function FieldLabel({ label }: { label: string }) {
+function FieldLabel({ label, helpText }: { label: string; helpText?: string }) {
   return (
     <div className="flex items-center gap-2">
       <Label>{label}</Label>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6"
-        onClick={() => window.alert("Em breve: conteúdo de apoio (Paranoia de Oferta).")}
-      >
-        <CircleHelp className="size-4 text-muted-foreground" />
-      </Button>
+      {helpText && (
+        <TooltipProvider>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="h-6 w-6">
+                <CircleHelp className="size-4 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-center">
+              <p>{helpText}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   )
 }
 
-function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TextField({ label, value, onChange, helpText }: { label: string; value: string; onChange: (value: string) => void; helpText?: string }) {
   return (
     <div className="space-y-2">
-      <FieldLabel label={label} />
+      <FieldLabel label={label} helpText={helpText} />
       <Input value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   )
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
+function ReadOnlyField({ label, value, helpText }: { label: string; value: string; helpText?: string }) {
   return (
     <div className="space-y-2">
-      <FieldLabel label={label} />
+      <FieldLabel label={label} helpText={helpText} />
       <Input value={value} readOnly className="bg-muted/40" />
     </div>
   )
 }
 
-function CurrencyField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+function CurrencyField({ label, value, onChange, helpText }: { label: string; value: number; onChange: (value: number) => void; helpText?: string }) {
   const [display, setDisplay] = useState(formatCurrencyMask(value))
 
   useEffect(() => {
@@ -614,7 +620,7 @@ function CurrencyField({ label, value, onChange }: { label: string; value: numbe
 
   return (
     <div className="space-y-2">
-      <FieldLabel label={label} />
+      <FieldLabel label={label} helpText={helpText} />
       <Input
         inputMode="decimal"
         value={display}
@@ -638,15 +644,17 @@ function NumberField({
   value,
   onChange,
   step = 1,
+  helpText
 }: {
   label: string
   value: number
   onChange: (value: number) => void
   step?: number
+  helpText?: string
 }) {
   return (
     <div className="space-y-2">
-      <FieldLabel label={label} />
+      <FieldLabel label={label} helpText={helpText} />
       <Input type="number" step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </div>
   )
