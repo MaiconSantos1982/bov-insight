@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { AlertTriangle, CheckCircle2, CircleHelp, FileDown, Save } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PageHeader } from "@/components/page-header"
 import { useData } from "@/lib/data-provider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -268,7 +269,7 @@ export default function CalculadoraCompraPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Viabilidade projetada de revenda</CardTitle>
+            <div className="flex items-center gap-2"><CardTitle>Viabilidade projetada de revenda</CardTitle><CalculationsHelpDialog /></div>
             <CardDescription>Com base no peso final e preço esperado de venda.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -386,5 +387,49 @@ function ResultCard({ title, value, subtitle, tone }: { title: string; value: st
         <div className="text-sm text-muted-foreground mt-1">{subtitle}</div>
       </CardContent>
     </Card>
+  )
+}
+
+function CalculationsHelpDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6">
+          <CircleHelp className="size-4 text-muted-foreground" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Memória de Cálculo (Compra)</DialogTitle>
+          <DialogDescription>Entenda como cada indicador de viabilidade é calculado pelo sistema.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm mt-4">
+          <div>
+            <h4 className="font-semibold text-foreground">Compra agora / futura (Custo Total por cabeça)</h4>
+            <p className="text-muted-foreground">Aquisição (Arrobas × Preço) + Frete + Impostos + Comissão na Compra + Custo de Capital</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Decisão / Recomendação</h4>
+            <p className="text-muted-foreground">Compara qual cenário tem o menor custo total de aquisição: comprar hoje (ao preço atual) ou no futuro (ao preço futuro esperado, retendo o dinheiro até lá).</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Peso final esperado</h4>
+            <p className="text-muted-foreground">Peso Médio Inicial + (GMD Esperado × Dias até a revenda)</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Valor revenda/cab</h4>
+            <p className="text-muted-foreground">Arrobas projetadas do peso final esperado × Preço Esperado Futuro</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Margem se comprar agora</h4>
+            <p className="text-muted-foreground">Valor Revenda por cabeça - Custo Total por cabeça (comprando agora)</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Margem se esperar</h4>
+            <p className="text-muted-foreground">Valor Revenda por cabeça - Custo Total por cabeça (comprando no futuro)</p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

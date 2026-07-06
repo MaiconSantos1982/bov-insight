@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, CheckCircle2, CircleHelp, FileDown, Save } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PageHeader } from "@/components/page-header"
 import { useData } from "@/lib/data-provider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -416,7 +417,7 @@ export default function CalculadoraVendaPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>CÁLCULOS</CardTitle>
+            <div className="flex items-center gap-2"><CardTitle>CÁLCULOS</CardTitle><CalculationsHelpDialog /></div>
             <CardDescription>Resultados do ciclo selecionado ({selectedDays} dias).</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -679,5 +680,57 @@ function ResultCard({
         <div className="text-sm text-muted-foreground mt-1">{subtitle}</div>
       </CardContent>
     </Card>
+  )
+}
+
+function CalculationsHelpDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6">
+          <CircleHelp className="size-4 text-muted-foreground" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Memória de Cálculo (Venda)</DialogTitle>
+          <DialogDescription>Entenda como cada indicador financeiro e zootécnico é calculado pelo sistema.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm mt-4">
+          <div>
+            <h4 className="font-semibold text-foreground">Ganho de peso no período</h4>
+            <p className="text-muted-foreground">GMD (kg/dia) × Dias do Ciclo</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Custo da @ produzida</h4>
+            <p className="text-muted-foreground">Custo adicional de retenção / Arrobas geradas no período</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Custo final total</h4>
+            <p className="text-muted-foreground">Custo de Aquisição + Custo Diário Total + Custo de Capital + Custos de Venda Futuros (Frete, Imposto, Comissão)</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Peso final do animal</h4>
+            <p className="text-muted-foreground">Peso Inicial + Ganho de Peso no Período</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Valor final por animal</h4>
+            <p className="text-muted-foreground">Receita Bruta Total Futura / Quantidade de Cabeças. Representa a receita de venda bruta (sem descontos) gerada por um animal.</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">ROI do ciclo (Retorno sobre Investimento)</h4>
+            <p className="text-muted-foreground">(Lucro Futuro / Custo Final Total) × 100</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Payback estimado (Dias)</h4>
+            <p className="text-muted-foreground">Margem Gerada (Receita Líquida - Aquisição - Custo Capital) / Custo Diário do Lote. Representa quantos dias a receita futura paga de diárias.</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground">Custo diário teto</h4>
+            <p className="text-muted-foreground">(Receita Líquida Futura - Custo de Aquisição - Custo de Capital - Lucro Hoje) / (Dias × Quantidade). Máximo que pode gastar de diária para empatar o lucro de segurar com o de vender agora.</p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
