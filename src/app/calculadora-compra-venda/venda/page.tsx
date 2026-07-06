@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, CheckCircle2, CircleHelp, FileDown, Save } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { useData } from "@/lib/data-provider"
@@ -385,7 +385,6 @@ export default function CalculadoraVendaPage() {
             <ReadOnlyField label="Preço atual médio por @" value={formatCurrency(currentCategoryPrice)} />
             <ReadOnlyField label="Preço atual médio por animal" value={formatCurrency(scenarioToday.finalValuePerHeadToday)} />
             <CurrencyField
-              key={`future-price-${form.category}-${form.uf}-${form.praca}-${effectiveFutureArrobaPrice.toFixed(2)}`}
               label="Preço futuro por @ (simulação)"
               value={effectiveFutureArrobaPrice}
               onChange={(v) => {
@@ -602,6 +601,12 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 
 function CurrencyField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
   const [display, setDisplay] = useState(formatCurrencyMask(value))
+
+  useEffect(() => {
+    if (parseCurrencyMask(display) !== value) {
+      setDisplay(formatCurrencyMask(value))
+    }
+  }, [value, display])
 
   return (
     <div className="space-y-2">

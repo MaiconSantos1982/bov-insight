@@ -132,7 +132,7 @@ export function calculateLivestockDecision(input: LivestockDecisionInput): Lives
   const incrementalProfitWithoutAdditional = netRevenueFuture - acquisitionCost - costsAlreadyRealized - capitalCost
   const paybackDays =
     dailyCostPerHead > 0 && quantity > 0
-      ? (incrementalProfitWithoutAdditional / (dailyCostPerHead * quantity)) * daysToHold
+      ? (incrementalProfitWithoutAdditional / (dailyCostPerHead * quantity))
       : null
 
   const denominator = daysToHold * quantity
