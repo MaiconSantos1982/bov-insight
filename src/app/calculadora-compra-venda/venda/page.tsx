@@ -323,12 +323,11 @@ export default function CalculadoraVendaPage() {
       <div className="p-4 sm:p-6 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>DADOS</CardTitle>
-            <CardDescription>Informações do lote e referência de preço atual.</CardDescription>
+            <CardTitle>LOTE</CardTitle>
+            <CardDescription>Identificação e localização do lote.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <TextField label="Nome do lote" value={form.lotName} onChange={(v) => updateField("lotName", v)} />
-
             <div className="space-y-2">
               <FieldLabel label="Categoria" />
               <Select value={form.category} onValueChange={(v) => updateField("category", v as LivestockCategory)}>
@@ -340,7 +339,6 @@ export default function CalculadoraVendaPage() {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <FieldLabel label="UF" />
               <Select value={form.uf} onValueChange={(v) => updateField("uf", v)}>
@@ -352,7 +350,6 @@ export default function CalculadoraVendaPage() {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <FieldLabel label="Praça" />
               <Select value={form.praca} onValueChange={(v) => updateField("praca", v)}>
@@ -364,13 +361,20 @@ export default function CalculadoraVendaPage() {
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>BASE PARA CÁLCULO</CardTitle>
+            <CardDescription>Parâmetros físicos e preços de referência.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <NumberField label="Quantidade cabeças" value={form.quantity} onChange={(v) => updateField("quantity", v)} />
             <CurrencyField label="Custo de aquisição (cabeça)" value={form.purchasePricePerHead} onChange={(v) => updateField("purchasePricePerHead", v)} />
             <NumberField label="Peso médio inicial (kg)" value={form.currentWeightKg} onChange={(v) => updateField("currentWeightKg", v)} />
             <NumberField label="GMD (kg/dia)" value={form.gmdKgDay} onChange={(v) => updateField("gmdKgDay", v)} step={0.1} />
             <NumberField label="Rendimento de carcaça" value={form.carcassYield} onChange={(v) => updateField("carcassYield", v)} step={0.01} />
-
             <div className="space-y-2">
               <FieldLabel label="Ciclo" />
               <Select value={form.cycle} onValueChange={(v) => updateField("cycle", v as FormState["cycle"])}>
@@ -382,7 +386,6 @@ export default function CalculadoraVendaPage() {
                 </SelectContent>
               </Select>
             </div>
-
             <ReadOnlyField label="Preço atual médio por @" value={formatCurrency(currentCategoryPrice)} />
             <ReadOnlyField label="Preço atual médio por animal" value={formatCurrency(scenarioToday.finalValuePerHeadToday)} />
             <CurrencyField

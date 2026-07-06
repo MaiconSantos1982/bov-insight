@@ -189,12 +189,11 @@ export default function CalculadoraCompraPage() {
       <div className="p-4 sm:p-6 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Dados da Compra</CardTitle>
-            <CardDescription>Defina categoria, mercado e premissas para decisão de compra.</CardDescription>
+            <CardTitle>LOTE</CardTitle>
+            <CardDescription>Identificação e localização do lote.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <TextField label="Nome do lote" value={form.lotName} onChange={(v) => setForm((p) => ({ ...p, lotName: v }))} />
-
             <div className="space-y-2">
               <FieldLabel label="Categoria" />
               <Select value={form.category} onValueChange={(v) => setForm((p) => ({ ...p, category: v as Category }))}>
@@ -206,7 +205,6 @@ export default function CalculadoraCompraPage() {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <FieldLabel label="UF" />
               <Select value={form.uf} onValueChange={(v) => setForm((p) => ({ ...p, uf: v }))}>
@@ -218,7 +216,6 @@ export default function CalculadoraCompraPage() {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <FieldLabel label="Praça" />
               <Select value={form.praca} onValueChange={(v) => setForm((p) => ({ ...p, praca: v }))}>
@@ -230,13 +227,20 @@ export default function CalculadoraCompraPage() {
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>BASE PARA CÁLCULO</CardTitle>
+            <CardDescription>Parâmetros físicos e preços de referência.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <NumberField label="Quantidade cabeças" value={form.quantity} onChange={(v) => setForm((p) => ({ ...p, quantity: v }))} />
             <NumberField label="Dias até compra" value={form.targetDays} onChange={(v) => setForm((p) => ({ ...p, targetDays: v }))} />
             <NumberField label="Peso médio inicial (kg)" value={form.currentWeightKg} onChange={(v) => setForm((p) => ({ ...p, currentWeightKg: v }))} />
             <NumberField label="GMD esperado (kg/dia)" value={form.expectedGmdKgDay} onChange={(v) => setForm((p) => ({ ...p, expectedGmdKgDay: v }))} step={0.1} />
             <NumberField label="Rendimento carcaça esperado" value={form.expectedCarcassYield} onChange={(v) => setForm((p) => ({ ...p, expectedCarcassYield: v }))} step={0.01} />
-
             <ReadOnlyField label="Preço de mercado atual por @" value={formatCurrency(marketPricePerArroba)} />
             <CurrencyField label="Preço para comprar agora (@)" value={effectiveCurrentPrice} onChange={(v) => setForm((p) => ({ ...p, currentPricePerArroba: v }))} />
             <CurrencyField label="Preço esperado futuro (@)" value={effectiveExpectedPrice} onChange={(v) => setForm((p) => ({ ...p, expectedPricePerArroba: v }))} />
